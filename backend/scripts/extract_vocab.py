@@ -94,26 +94,35 @@ def extract_text_from_pdf(pdf_path: Path, max_pages: int = 10) -> str:
     print(f"  Extracted {len(text)} characters")
     return text
 
+
 def is_probably_valid_german_word(token) -> bool:
     """Reject tokens that don't look like real German words."""
     word = token.text
+    lemma = token.lemma_
 
-    # Must be mostly alphabetic (letters only, allowing umlauts/ß)
+    # Letters only (allow umlauts, ß, internal hyphens)
     if not re.match(r"^[a-zA-ZäöüÄÖÜß\-]+$", word):
         return False
 
-    # Must be at least 3 characters
+    # At least 3 characters
     if len(word) < 3:
         return False
 
-    # Skip if it looks like a numbered list item
-    if re.match(r"^\d+\.?$", word):
+    # spaCy knows this word from its German training corpus
+    # (rejects most OCR garbage and English contaminants)
+    if token.is_oov:
         return False
 
-    # spaCy vocab check: real German words will have an entry
-    # (this filters out OCR garbage and foreign words)
-    if not token.has_vector:
+    # German nouns are always capitalized in correct text
+    # If spaCy tagged something as a noun but it's lowercase in the source,
+    # it's probably an OCR error or misclassification
+    if token.pos_ == "NOUN" and not word[0].isupper():
         return False
+
+    # Catch words ending in weird OCR artifacts
+    # e.g. "Berghütt" (missing e), "Burge" (wrong plural form)
+    # These often have lemmas equal to themselves (no proper lemmatization happened)
+    # We'll let Gemini catch these later — skip this heuristic for now
 
     return True
 
