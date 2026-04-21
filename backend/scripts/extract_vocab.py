@@ -14,7 +14,7 @@ import spacy
 import os
 import shutil
 
-from translator import translate_batch
+from backend.app.translator import translate_batch
 
 # --- Windows paths  ---
 # Look for Tesseract in common Windows install locations, then fall back to PATH

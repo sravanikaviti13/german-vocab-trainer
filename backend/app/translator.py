@@ -10,14 +10,14 @@ from typing import Protocol
 
 from dotenv import load_dotenv
 
-from translation_cache import load_cache, save_cache
+from app.translation_cache import load_cache, save_cache
 
 load_dotenv(Path(__file__).parent.parent / ".env")
 
 # Which provider to use. Override with PROVIDER env var.
 PROVIDER = os.getenv("LLM_PROVIDER", "groq").lower()
 
-BATCH_SIZE = 30
+BATCH_SIZE = 50
 MAX_RETRIES = 4
 INITIAL_BACKOFF = 2.0
 

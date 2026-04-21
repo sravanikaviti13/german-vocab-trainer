@@ -18,5 +18,6 @@ dist/
 uploads/
 
 translation_cache.json
+vocab.db
 
 backend/sample_pdf/
