@@ -14,6 +14,8 @@ import spacy
 import os
 import shutil
 
+from translator import translate_batch
+
 # --- Windows paths  ---
 # Look for Tesseract in common Windows install locations, then fall back to PATH
 _TESSERACT_CANDIDATES = [
@@ -153,25 +155,64 @@ def extract_vocabulary(text: str) -> dict:
 
     return vocab
 
+def enrich_with_translations(vocab: dict) -> dict:
+    """Send all candidate words to Gemini for validation + translation."""
+    # Flatten all words into one list
+    candidates = []
+    candidates.extend(vocab["nouns"].keys())
+    candidates.extend(vocab["verbs"])
+    candidates.extend(vocab["adjectives"])
+
+    print(f"\nSending {len(candidates)} words to Gemini...")
+    results = translate_batch(candidates)
+
+    enriched = {"nouns": {}, "verbs": {}, "adjectives": {}}
+    for word, data in zip(candidates, results):
+        if data is None:
+            continue  # Gemini rejected this as not real German
+
+        pos = data.get("pos")
+        entry = {
+            "english": data.get("english"),
+            "example_de": data.get("example_de"),
+            "example_en": data.get("example_en"),
+        }
+
+        if pos == "noun":
+            entry["article"] = data.get("article")
+            entry["plural"] = data.get("plural")
+            enriched["nouns"][data["word"]] = entry
+        elif pos == "verb":
+            enriched["verbs"][data["word"]] = entry
+        elif pos == "adjective":
+            enriched["adjectives"][data["word"]] = entry
+
+    return enriched
 
 def print_vocabulary(vocab: dict) -> None:
-    print("\n" + "=" * 50)
+    print("\n" + "=" * 60)
     print(f"NOUNS ({len(vocab['nouns'])})")
-    print("=" * 50)
-    for noun, article in sorted(vocab["nouns"].items()):
-        print(f"  {article} {noun}")
+    print("=" * 60)
+    for noun, data in sorted(vocab["nouns"].items()):
+        article = data.get("article", "?")
+        english = data.get("english", "")
+        print(f"  {article} {noun:25s} → {english}")
+        if data.get("example_de"):
+            print(f"      e.g. {data['example_de']}")
 
-    print("\n" + "=" * 50)
+    print("\n" + "=" * 60)
     print(f"VERBS ({len(vocab['verbs'])})")
-    print("=" * 50)
-    for verb in sorted(vocab["verbs"]):
-        print(f"  {verb}")
+    print("=" * 60)
+    for verb, data in sorted(vocab["verbs"].items()):
+        english = data.get("english", "")
+        print(f"  {verb:25s} → {english}")
 
-    print("\n" + "=" * 50)
+    print("\n" + "=" * 60)
     print(f"ADJECTIVES ({len(vocab['adjectives'])})")
-    print("=" * 50)
-    for adj in sorted(vocab["adjectives"]):
-        print(f"  {adj}")
+    print("=" * 60)
+    for adj, data in sorted(vocab["adjectives"].items()):
+        english = data.get("english", "")
+        print(f"  {adj:25s} → {english}")
 
 
 def main():
@@ -188,7 +229,8 @@ def main():
 
     text = extract_text_from_pdf(pdf_path, max_pages)
     vocab = extract_vocabulary(text)
-    print_vocabulary(vocab)
+    enriched = enrich_with_translations(vocab)
+    print_vocabulary(enriched)
 
 
 if __name__ == "__main__":
