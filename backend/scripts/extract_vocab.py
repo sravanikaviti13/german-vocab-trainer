@@ -1,53 +1,74 @@
 """
 Extract German vocabulary from a PDF file.
-Groups words into nouns (with articles), verbs, adjectives, and other.
+Auto-detects scanned PDFs and falls back to OCR.
 """
 import sys
 from pathlib import Path
-from collections import defaultdict
 
 import pdfplumber
+import pytesseract
+from pdf2image import convert_from_path
 import spacy
 
-# Load German NLP model once
+# --- Windows paths  ---
+TESSERACT_PATH = r"C:\Users\skaviti\AppData\Local\Programs\Tesseract-OCR\tesseract.exe"
+POPPLER_PATH = r"C:\poppler\Library\bin"  # folder containing pdftoppm.exe
+
+pytesseract.pytesseract.tesseract_cmd = TESSERACT_PATH
+
 print("Loading German language model...")
 nlp = spacy.load("de_core_news_lg")
 
-# Map spaCy's gender tags to German articles
-GENDER_TO_ARTICLE = {
-    "Masc": "der",
-    "Fem": "die",
-    "Neut": "das",
-}
+GENDER_TO_ARTICLE = {"Masc": "der", "Fem": "die", "Neut": "das"}
+
+
+def extract_text_native(pdf_path: Path, max_pages: int) -> str:
+    """Try to extract text directly (fast, works for real text PDFs)."""
+    parts = []
+    with pdfplumber.open(pdf_path) as pdf:
+        for page in pdf.pages[:max_pages]:
+            text = page.extract_text()
+            if text:
+                parts.append(text)
+    return "\n".join(parts)
+
+
+def extract_text_ocr(pdf_path: Path, max_pages: int) -> str:
+    """Convert PDF pages to images, then OCR them in German."""
+    print("  No text found — running OCR (this takes ~5–10 sec per page)...")
+    images = convert_from_path(
+        pdf_path,
+        first_page=1,
+        last_page=max_pages,
+        poppler_path=POPPLER_PATH,
+        dpi=300,  # higher dpi = better accuracy, slower
+    )
+    parts = []
+    for i, image in enumerate(images, start=1):
+        print(f"  OCR page {i}/{len(images)}...")
+        text = pytesseract.image_to_string(image, lang="deu")
+        parts.append(text)
+    return "\n".join(parts)
 
 
 def extract_text_from_pdf(pdf_path: Path, max_pages: int = 10) -> str:
-    """Pull all text out of a PDF, capped at max_pages."""
-    text_parts = []
-    with pdfplumber.open(pdf_path) as pdf:
-        pages_to_read = pdf.pages[:max_pages]
-        print(f"Reading {len(pages_to_read)} pages from {pdf_path.name}")
-        for page in pages_to_read:
-            page_text = page.extract_text()
-            if page_text:
-                text_parts.append(page_text)
-    return "\n".join(text_parts)
+    """Try native extraction first, fall back to OCR if PDF is scanned."""
+    print(f"Reading up to {max_pages} pages from {pdf_path.name}")
+    text = extract_text_native(pdf_path, max_pages)
+
+    # If we got very little text, it's probably scanned
+    if len(text.strip()) < 50:
+        text = extract_text_ocr(pdf_path, max_pages)
+
+    print(f"  Extracted {len(text)} characters")
+    return text
 
 
 def extract_vocabulary(text: str) -> dict:
-    """Run text through spaCy and group words by part of speech."""
     doc = nlp(text)
-
-    # Use sets to automatically deduplicate
-    vocab = {
-        "nouns": {},       # lemma -> article
-        "verbs": set(),
-        "adjectives": set(),
-        "other": set(),
-    }
+    vocab = {"nouns": {}, "verbs": set(), "adjectives": set(), "other": set()}
 
     for token in doc:
-        # Skip punctuation, numbers, spaces, stopwords
         if token.is_punct or token.is_space or token.is_digit:
             continue
         if token.is_stop or len(token.lemma_) < 2:
@@ -56,26 +77,20 @@ def extract_vocabulary(text: str) -> dict:
         lemma = token.lemma_.lower()
 
         if token.pos_ == "NOUN":
-            # Get gender from morphological features
             genders = token.morph.get("Gender")
             article = GENDER_TO_ARTICLE.get(genders[0], "?") if genders else "?"
-            # Capitalize nouns (German convention)
             vocab["nouns"][lemma.capitalize()] = article
-
-        elif token.pos_ == "VERB" or token.pos_ == "AUX":
+        elif token.pos_ in ("VERB", "AUX"):
             vocab["verbs"].add(lemma)
-
         elif token.pos_ == "ADJ":
             vocab["adjectives"].add(lemma)
-
-        elif token.pos_ in ("ADV",):
+        elif token.pos_ == "ADV":
             vocab["other"].add(lemma)
 
     return vocab
 
 
 def print_vocabulary(vocab: dict) -> None:
-    """Pretty-print the results."""
     print("\n" + "=" * 50)
     print(f"NOUNS ({len(vocab['nouns'])})")
     print("=" * 50)
