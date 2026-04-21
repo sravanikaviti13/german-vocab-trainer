@@ -1,0 +1,2 @@
+spacy==3.7.5
+pdfplumber==0.11.4
