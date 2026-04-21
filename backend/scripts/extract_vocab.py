@@ -3,6 +3,7 @@ Extract German vocabulary from a PDF file.
 Auto-detects scanned PDFs and falls back to OCR.
 """
 import sys
+import re
 from pathlib import Path
 
 import pdfplumber
@@ -10,9 +11,29 @@ import pytesseract
 from pdf2image import convert_from_path
 import spacy
 
+import os
+import shutil
+
 # --- Windows paths  ---
-TESSERACT_PATH = r"C:\Users\skaviti\AppData\Local\Programs\Tesseract-OCR\tesseract.exe"
-POPPLER_PATH = r"C:\poppler\Library\bin"  # folder containing pdftoppm.exe
+# Look for Tesseract in common Windows install locations, then fall back to PATH
+_TESSERACT_CANDIDATES = [
+    r"C:\Program Files\Tesseract-OCR\tesseract.exe",
+    os.path.expandvars(r"%LOCALAPPDATA%\Programs\Tesseract-OCR\tesseract.exe"),
+    shutil.which("tesseract"),  # if it's on PATH
+]
+TESSERACT_PATH = next((p for p in _TESSERACT_CANDIDATES if p and os.path.exists(p)), None)
+
+if TESSERACT_PATH:
+    pytesseract.pytesseract.tesseract_cmd = TESSERACT_PATH
+else:
+    print("WARNING: Tesseract not found. OCR will fail if the PDF needs it.")
+
+_POPPLER_CANDIDATES = [
+    r"C:\poppler\Library\bin",
+    r"C:\Program Files\poppler\Library\bin",
+    os.path.expandvars(r"%LOCALAPPDATA%\Programs\poppler\Library\bin"),
+]
+POPPLER_PATH = next((p for p in _POPPLER_CANDIDATES if os.path.exists(p)), None)
 
 pytesseract.pytesseract.tesseract_cmd = TESSERACT_PATH
 
@@ -32,7 +53,6 @@ def extract_text_native(pdf_path: Path, max_pages: int) -> str:
                 parts.append(text)
     return "\n".join(parts)
 
-
 def extract_text_ocr(pdf_path: Path, max_pages: int) -> str:
     """Convert PDF pages to images, then OCR them in German."""
     print("  No text found — running OCR (this takes ~5–10 sec per page)...")
@@ -50,6 +70,16 @@ def extract_text_ocr(pdf_path: Path, max_pages: int) -> str:
         parts.append(text)
     return "\n".join(parts)
 
+def clean_ocr_text(text: str) -> str:
+    """Fix common OCR issues before NLP processing."""
+    # Rejoin hyphenated words split across line breaks
+    # e.g. "Deutsch-\nunterricht" -> "Deutschunterricht"
+    text = re.sub(r"-\s*\n\s*", "", text)
+
+    # Collapse multiple whitespace into single space
+    text = re.sub(r"\s+", " ", text)
+
+    return text
 
 def extract_text_from_pdf(pdf_path: Path, max_pages: int = 10) -> str:
     """Try native extraction first, fall back to OCR if PDF is scanned."""
@@ -60,9 +90,32 @@ def extract_text_from_pdf(pdf_path: Path, max_pages: int = 10) -> str:
     if len(text.strip()) < 50:
         text = extract_text_ocr(pdf_path, max_pages)
 
+    text = clean_ocr_text(text) 
     print(f"  Extracted {len(text)} characters")
     return text
 
+def is_probably_valid_german_word(token) -> bool:
+    """Reject tokens that don't look like real German words."""
+    word = token.text
+
+    # Must be mostly alphabetic (letters only, allowing umlauts/ß)
+    if not re.match(r"^[a-zA-ZäöüÄÖÜß\-]+$", word):
+        return False
+
+    # Must be at least 3 characters
+    if len(word) < 3:
+        return False
+
+    # Skip if it looks like a numbered list item
+    if re.match(r"^\d+\.?$", word):
+        return False
+
+    # spaCy vocab check: real German words will have an entry
+    # (this filters out OCR garbage and foreign words)
+    if not token.has_vector:
+        return False
+
+    return True
 
 def extract_vocabulary(text: str) -> dict:
     doc = nlp(text)
@@ -71,7 +124,9 @@ def extract_vocabulary(text: str) -> dict:
     for token in doc:
         if token.is_punct or token.is_space or token.is_digit:
             continue
-        if token.is_stop or len(token.lemma_) < 2:
+        if token.is_stop:
+            continue
+        if not is_probably_valid_german_word(token):
             continue
 
         lemma = token.lemma_.lower()
