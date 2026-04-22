@@ -1,0 +1,29 @@
+import axios from "axios";
+
+const api = axios.create({
+  baseURL: "http://localhost:8000/api",
+});
+
+export const listBooks = () => api.get("/books").then((r) => r.data);
+
+export const getChapterWords = (chapterId) =>
+  api.get(`/chapters/${chapterId}/words`).then((r) => r.data);
+
+export const getWordsForReview = (limit = 20) =>
+  api.get("/words/review", { params: { limit } }).then((r) => r.data);
+
+export const recordReview = (wordId, correct) =>
+  api.post(`/words/${wordId}/review`, { correct }).then((r) => r.data);
+
+export const uploadPdf = (file, book, chapter, pages = 10) => {
+  const form = new FormData();
+  form.append("file", file);
+  form.append("book", book);
+  form.append("chapter", chapter);
+  form.append("pages", pages);
+  return api
+    .post("/upload", form, { headers: { "Content-Type": "multipart/form-data" } })
+    .then((r) => r.data);
+};
+
+export default api;
