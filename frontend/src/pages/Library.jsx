@@ -33,7 +33,7 @@ export default function Library() {
           {book.chapters.map((ch) => (
             <Link
               key={ch.id}
-              to={`/practice/${ch.id}`}
+              to={`/chapters/${ch.id}`}
               style={styles.chapter}
             >
               <span>{ch.title}</span>

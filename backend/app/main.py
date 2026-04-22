@@ -98,7 +98,11 @@ def list_books(db: Session = Depends(get_db)):
 
 
 @app.get("/api/chapters/{chapter_id}/words", response_model=list[WordWithProgress])
-def get_chapter_words(chapter_id: int, db: Session = Depends(get_db)):
+def get_chapter_words(
+    chapter_id: int,
+    pos: str | None = None,
+    db: Session = Depends(get_db),
+):
     chapter = db.query(Chapter).filter_by(id=chapter_id).first()
     if not chapter:
         raise HTTPException(404, "Chapter not found")
@@ -106,6 +110,8 @@ def get_chapter_words(chapter_id: int, db: Session = Depends(get_db)):
     out = []
     for cw in chapter.chapter_words:
         word = cw.word
+        if pos and word.pos != pos:
+            continue  # filter by POS if requested
         progress = word.progress
         out.append(WordWithProgress(
             id=word.id, lemma=word.lemma, pos=word.pos,
@@ -118,6 +124,37 @@ def get_chapter_words(chapter_id: int, db: Session = Depends(get_db)):
         ))
     return out
 
+@app.get("/api/chapters/{chapter_id}")
+def get_chapter_summary(chapter_id: int, db: Session = Depends(get_db)):
+    """Return chapter metadata + word counts per POS."""
+    chapter = db.query(Chapter).filter_by(id=chapter_id).first()
+    if not chapter:
+        raise HTTPException(404, "Chapter not found")
+
+    # Count words by POS
+    counts = {"noun": 0, "verb": 0, "adjective": 0, "adverb": 0}
+    for cw in chapter.chapter_words:
+        pos = cw.word.pos
+        if pos in counts:
+            counts[pos] += 1
+
+    # Count words due for review in this chapter
+    from datetime import date
+    today = date.today()
+    due = 0
+    for cw in chapter.chapter_words:
+        if cw.word.progress and cw.word.progress.next_review and cw.word.progress.next_review <= today:
+            due += 1
+
+    return {
+        "id": chapter.id,
+        "title": chapter.title,
+        "book_title": chapter.book.title,
+        "page_range": chapter.page_range,
+        "counts": counts,
+        "total": sum(counts.values()),
+        "due_today": due,
+    }
 
 @app.get("/api/words/review", response_model=list[WordWithProgress])
 def get_words_for_review(limit: int = 20, db: Session = Depends(get_db)):

@@ -26,4 +26,12 @@ export const uploadPdf = (file, book, chapter, pages = 10) => {
     .then((r) => r.data);
 };
 
+export const getChapterSummary = (chapterId) =>
+  api.get(`/chapters/${chapterId}`).then((r) => r.data);
+
+export const getChapterWordsFiltered = (chapterId, pos) => {
+  const params = pos ? { pos } : {};
+  return api.get(`/chapters/${chapterId}/words`, { params }).then((r) => r.data);
+};
+
 export default api;

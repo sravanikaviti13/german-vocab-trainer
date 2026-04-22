@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
-import { getChapterWords, recordReview } from "../api";
+import { useParams, useSearchParams, Link } from "react-router-dom";
+import { getChapterWordsFiltered, recordReview } from "../api";
 
 export default function Practice() {
   const { chapterId } = useParams();
+  const [searchParams] = useSearchParams();
+  const posFilter = searchParams.get("pos"); // null or "noun" etc.
   const [allWords, setAllWords] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -18,10 +20,10 @@ export default function Practice() {
   const [revealed, setRevealed] = useState(false);
 
   useEffect(() => {
-    getChapterWords(chapterId)
+    getChapterWordsFiltered(chapterId, posFilter)
       .then(setAllWords)
       .finally(() => setLoading(false));
-  }, [chapterId]);
+  }, [chapterId, posFilter]);
 
   if (loading) return <p>Loading...</p>;
   if (allWords.length === 0) return <p>No words in this chapter.</p>;
@@ -31,7 +33,9 @@ export default function Practice() {
     return (
       <div style={styles.setup}>
         <h2>Practice session</h2>
-        <p style={styles.muted}>{allWords.length} words in this chapter</p>
+        <p style={styles.muted}>
+          {allWords.length} {posFilter ? `${posFilter}s` : "words"} in this chapter
+        </p>
 
         <label style={styles.toggle}>
           <input

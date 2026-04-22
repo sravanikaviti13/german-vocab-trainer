@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Link } from "react-router-dom";
 import Library from "./pages/Library";
 import Upload from "./pages/Upload";
 import Practice from "./pages/Practice";
+import ChapterDetail from "./pages/ChapterDetail";
 
 export default function App() {
   return (
@@ -18,6 +19,7 @@ export default function App() {
           <Routes>
             <Route path="/" element={<Library />} />
             <Route path="/upload" element={<Upload />} />
+            <Route path="/chapters/:chapterId" element={<ChapterDetail />} />
             <Route path="/practice/:chapterId" element={<Practice />} />
           </Routes>
         </main>
