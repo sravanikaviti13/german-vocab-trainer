@@ -45,3 +45,9 @@ export const logArticleAttempt = (wordId, chapterId, correct) =>
     chapter_id: chapterId,
     correct,
   }).then((r) => r.data);
+
+export const getGraph = (scope, id = null) => {
+  const params = { scope };
+  if (id !== null) params.id = id;
+  return api.get("/graph", { params }).then((r) => r.data);
+};

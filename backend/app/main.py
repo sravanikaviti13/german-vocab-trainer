@@ -246,3 +246,83 @@ def log_article_attempt(
     db.add(row)
     db.commit()
     return {"ok": True}
+
+
+
+@app.get("/api/graph")
+def get_graph(
+    scope: Literal["all", "book", "chapter"] = "all",
+    id: int | None = None,
+    db: Session = Depends(get_db),
+):
+    """
+    Returns nodes (words) and edges (co-occurrences) for the vocab network graph.
+
+    scope:
+      - "all": every word you have
+      - "book": words in one book (requires id = book_id)
+      - "chapter": words in one chapter (requires id = chapter_id)
+    """
+    # Figure out which chapters are in scope
+    if scope == "chapter":
+        if id is None:
+            raise HTTPException(400, "id required for chapter scope")
+        chapters = db.query(Chapter).filter_by(id=id).all()
+    elif scope == "book":
+        if id is None:
+            raise HTTPException(400, "id required for book scope")
+        chapters = db.query(Chapter).filter_by(book_id=id).all()
+    else:
+        chapters = db.query(Chapter).all()
+
+    if not chapters:
+        return {"nodes": [], "edges": []}
+
+    chapter_ids = {c.id for c in chapters}
+
+    # Collect words appearing in these chapters + track which chapter(s) each word belongs to
+    word_chapters: dict[int, set[int]] = defaultdict(set)
+    words_by_id: dict[int, Word] = {}
+    for ch in chapters:
+        for cw in ch.chapter_words:
+            word_chapters[cw.word_id].add(ch.id)
+            words_by_id[cw.word_id] = cw.word
+
+    # Build nodes
+    nodes = []
+    for word_id, word in words_by_id.items():
+        progress = word.progress
+        times_seen = progress.times_seen if progress else 0
+        times_correct = progress.times_correct if progress else 0
+        strength = progress.strength if progress else 0
+
+        # Accuracy for color intensity (0.0–1.0); None if untouched
+        accuracy = (times_correct / times_seen) if times_seen > 0 else None
+
+        nodes.append({
+            "id": word_id,
+            "lemma": word.lemma,
+            "pos": word.pos,
+            "article": word.article,
+            "english": word.english,
+            "times_seen": times_seen,
+            "strength": strength,
+            "accuracy": accuracy,
+            "chapter_count": len(word_chapters[word_id]),  # frequency across chapters
+        })
+
+    # Build edges: two words are connected if they share at least one chapter in scope
+    # edge weight = number of shared chapters
+    edge_weights: dict[tuple[int, int], int] = defaultdict(int)
+    for ch in chapters:
+        word_ids = sorted(cw.word_id for cw in ch.chapter_words)
+        for i in range(len(word_ids)):
+            for j in range(i + 1, len(word_ids)):
+                edge_weights[(word_ids[i], word_ids[j])] += 1
+
+    edges = [
+        {"source": a, "target": b, "weight": w}
+        for (a, b), w in edge_weights.items()
+    ]
+
+    return {"nodes": nodes, "edges": edges}

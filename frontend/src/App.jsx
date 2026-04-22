@@ -5,6 +5,7 @@ import Practice from "./pages/Practice";
 import ChapterDetail from "./pages/ChapterDetail";
 import ArticleDrill from "./pages/ArticleDrill";
 import Matching from "./pages/Matching";
+import Graph from "./pages/Graph";
 
 export default function App() {
   return (
@@ -14,6 +15,7 @@ export default function App() {
           <Link to="/" style={styles.brand}>Deutsch Vocab Trainer</Link>
           <div style={styles.links}>
             <Link to="/" style={styles.link}>Library</Link>
+            <Link to="/graph" style={styles.link}>Graph</Link>
             <Link to="/upload" style={styles.link}>Upload</Link>
           </div>
         </nav>
@@ -25,6 +27,7 @@ export default function App() {
             <Route path="/practice/:chapterId" element={<Practice />} />
             <Route path="/drill/:chapterId/articles" element={<ArticleDrill />} />
             <Route path="/match/:chapterId" element={<Matching />} />
+            <Route path="/graph" element={<Graph />} />
           </Routes>
         </main>
       </div>
