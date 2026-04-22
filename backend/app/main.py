@@ -126,25 +126,36 @@ def get_chapter_words(
 
 @app.get("/api/chapters/{chapter_id}")
 def get_chapter_summary(chapter_id: int, db: Session = Depends(get_db)):
-    """Return chapter metadata + word counts per POS."""
+    """Return chapter metadata + word counts and mastery per POS."""
     chapter = db.query(Chapter).filter_by(id=chapter_id).first()
     if not chapter:
         raise HTTPException(404, "Chapter not found")
 
-    # Count words by POS
     counts = {"noun": 0, "verb": 0, "adjective": 0, "adverb": 0}
-    for cw in chapter.chapter_words:
-        pos = cw.word.pos
-        if pos in counts:
-            counts[pos] += 1
+    # Aggregate review stats per POS
+    seen = {"noun": 0, "verb": 0, "adjective": 0, "adverb": 0}
+    correct = {"noun": 0, "verb": 0, "adjective": 0, "adverb": 0}
 
-    # Count words due for review in this chapter
     from datetime import date
     today = date.today()
     due = 0
+
     for cw in chapter.chapter_words:
-        if cw.word.progress and cw.word.progress.next_review and cw.word.progress.next_review <= today:
-            due += 1
+        word = cw.word
+        pos = word.pos
+        if pos in counts:
+            counts[pos] += 1
+            progress = word.progress
+            if progress:
+                seen[pos] += progress.times_seen
+                correct[pos] += progress.times_correct
+                if progress.next_review and progress.next_review <= today:
+                    due += 1
+
+    # Compute percent mastery per POS (null if no reviews yet)
+    mastery = {}
+    for pos in counts:
+        mastery[pos] = round(100 * correct[pos] / seen[pos]) if seen[pos] > 0 else None
 
     return {
         "id": chapter.id,
@@ -152,6 +163,7 @@ def get_chapter_summary(chapter_id: int, db: Session = Depends(get_db)):
         "book_title": chapter.book.title,
         "page_range": chapter.page_range,
         "counts": counts,
+        "mastery": mastery,
         "total": sum(counts.values()),
         "due_today": due,
     }

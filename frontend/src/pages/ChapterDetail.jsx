@@ -81,12 +81,11 @@ export default function ChapterDetail() {
                 </button>
                 <div style={{ display: "flex", gap: 6 }}>
                     {pos === "noun" && (
-                        <Link
+                        <MasteryButton
                         to={`/drill/${chapterId}/articles`}
-                        style={{ ...styles.practiceBtn, background: "#fff3e0", color: "#e65100" }}
-                        >
-                        Articles
-                        </Link>
+                        label="Articles"
+                        percent={summary.mastery?.noun}
+                        />
                     )}
                     <Link
                         to={`/practice/${chapterId}?pos=${pos}`}
@@ -94,7 +93,7 @@ export default function ChapterDetail() {
                     >
                         Practice
                     </Link>
-                </div>
+                    </div>
               </div>
 
               {isOpen && wordsCache[pos] && (
@@ -106,6 +105,32 @@ export default function ChapterDetail() {
         })}
       </div>
     </div>
+  );
+}
+
+function MasteryButton({ to, label, percent }) {
+  const hasData = percent !== null && percent !== undefined;
+  // Color gradient: red (low) → yellow (mid) → green (high)
+  const fillColor =
+    !hasData ? "#e0e0e0" :
+    percent >= 80 ? "#4caf50" :
+    percent >= 50 ? "#fdd835" :
+    "#ef9a9a";
+
+  return (
+    <Link to={to} style={styles.masteryBtn} title={hasData ? `${percent}% mastery` : "Not practiced yet"}>
+      <span
+        style={{
+          ...styles.masteryFill,
+          width: hasData ? `${percent}%` : "0%",
+          background: fillColor,
+        }}
+      />
+      <span style={styles.masteryLabel}>
+        {label}
+        {hasData && <span style={styles.masteryPct}> {percent}%</span>}
+      </span>
+    </Link>
   );
 }
 
@@ -246,4 +271,34 @@ const styles = {
   dot: { width: 6, height: 6, borderRadius: "50%", display: "inline-block" },
 
   loading: { padding: 16, color: "#888" },
+
+  masteryBtn: {
+    position: "relative",
+    display: "inline-block",
+    padding: "6px 14px",
+    background: "#fff3e0",
+    color: "#e65100",
+    borderRadius: 6,
+    fontSize: "0.9rem",
+    overflow: "hidden",
+    minWidth: 90,
+    textAlign: "center",
+  },
+  masteryFill: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    bottom: 0,
+    transition: "width 0.4s ease",
+    opacity: 0.35,
+    zIndex: 0,
+  },
+  masteryLabel: {
+    position: "relative",
+    zIndex: 1,
+  },
+  masteryPct: {
+    marginLeft: 4,
+    fontWeight: 600,
+  },
 };
