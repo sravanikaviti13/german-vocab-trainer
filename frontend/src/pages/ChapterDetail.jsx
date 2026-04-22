@@ -79,12 +79,22 @@ export default function ChapterDetail() {
                   <span style={styles.count}>{count}</span>
                   <span style={styles.chevron}>{isOpen ? "▾" : "▸"}</span>
                 </button>
-                <Link
-                  to={`/practice/${chapterId}?pos=${pos}`}
-                  style={styles.practiceBtn}
-                >
-                  Practice
-                </Link>
+                <div style={{ display: "flex", gap: 6 }}>
+                    {pos === "noun" && (
+                        <Link
+                        to={`/drill/${chapterId}/articles`}
+                        style={{ ...styles.practiceBtn, background: "#fff3e0", color: "#e65100" }}
+                        >
+                        Articles
+                        </Link>
+                    )}
+                    <Link
+                        to={`/practice/${chapterId}?pos=${pos}`}
+                        style={styles.practiceBtn}
+                    >
+                        Practice
+                    </Link>
+                </div>
               </div>
 
               {isOpen && wordsCache[pos] && (
