@@ -56,9 +56,14 @@ export default function ChapterDetail() {
         </p>
       </div>
 
-      <Link to={`/practice/${chapterId}`} style={styles.practiceAll}>
-        Practice all {summary.total} words →
-      </Link>
+      <div style={styles.topActions}>
+        <Link to={`/match/${chapterId}`} style={{ ...styles.practiceAll, background: "#2e7d32" }}>
+            Match all →
+        </Link>
+        <Link to={`/practice/${chapterId}`} style={styles.practiceAll}>
+            Practice all →
+        </Link>
+      </div>
 
       <div style={styles.sections}>
         {Object.entries(summary.counts).map(([pos, count]) => {
@@ -88,12 +93,18 @@ export default function ChapterDetail() {
                         />
                     )}
                     <Link
+                        to={`/match/${chapterId}?pos=${pos}`}
+                        style={{ ...styles.practiceBtn, background: "#e8f5e9", color: "#2e7d32" }}
+                    >
+                        Match
+                    </Link>
+                    <Link
                         to={`/practice/${chapterId}?pos=${pos}`}
                         style={styles.practiceBtn}
                     >
                         Practice
                     </Link>
-                    </div>
+                </div>
               </div>
 
               {isOpen && wordsCache[pos] && (
@@ -204,7 +215,6 @@ const styles = {
     borderRadius: 8,
     textAlign: "center",
     fontWeight: 500,
-    marginBottom: 16,
   },
 
   sections: { display: "flex", flexDirection: "column", gap: 12 },
@@ -300,5 +310,11 @@ const styles = {
   masteryPct: {
     marginLeft: 4,
     fontWeight: 600,
+  },
+  topActions: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: 12,
+    marginBottom: 16,
   },
 };

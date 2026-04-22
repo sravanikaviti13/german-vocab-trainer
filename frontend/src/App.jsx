@@ -4,6 +4,7 @@ import Upload from "./pages/Upload";
 import Practice from "./pages/Practice";
 import ChapterDetail from "./pages/ChapterDetail";
 import ArticleDrill from "./pages/ArticleDrill";
+import Matching from "./pages/Matching";
 
 export default function App() {
   return (
@@ -23,6 +24,7 @@ export default function App() {
             <Route path="/chapters/:chapterId" element={<ChapterDetail />} />
             <Route path="/practice/:chapterId" element={<Practice />} />
             <Route path="/drill/:chapterId/articles" element={<ArticleDrill />} />
+            <Route path="/match/:chapterId" element={<Matching />} />
           </Routes>
         </main>
       </div>
