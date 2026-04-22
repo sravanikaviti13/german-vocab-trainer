@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
-import { getChapterWordsFiltered, recordReview } from "../api";
+import { getChapterWordsFiltered, recordReview, logArticleAttempt } from "../api";
 
 const ARTICLES = ["der", "die", "das"];
 const ARTICLE_COLORS = {
@@ -64,27 +64,27 @@ export default function ArticleDrill() {
   const word = words[index];
 
   async function pick(article) {
-    if (answered) return; // already answered, prevent double-click
+    if (answered) return;
 
     const correct = article === word.article;
     setSelectedArticle(article);
     setAnswered(correct ? "correct" : "wrong");
 
-    // Record review on backend
     try {
-      await recordReview(word.id, correct);
+        await recordReview(word.id, correct);
+        await logArticleAttempt(word.id, parseInt(chapterId), correct);  // add this
     } catch (err) {
-      console.error("Failed to record:", err);
+        console.error("Failed to record:", err);
     }
 
     const newStreak = correct ? stats.streak + 1 : 0;
     setStats({
-      correct: stats.correct + (correct ? 1 : 0),
-      wrong: stats.wrong + (correct ? 0 : 1),
-      streak: newStreak,
-      bestStreak: Math.max(stats.bestStreak, newStreak),
+        correct: stats.correct + (correct ? 1 : 0),
+        wrong: stats.wrong + (correct ? 0 : 1),
+        streak: newStreak,
+        bestStreak: Math.max(stats.bestStreak, newStreak),
     });
-  }
+}
 
   function next() {
     setAnswered(null);

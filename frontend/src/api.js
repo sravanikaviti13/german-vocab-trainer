@@ -38,3 +38,10 @@ export const getChapterWordsFiltered = (chapterId, pos) => {
 };
 
 export default api;
+
+export const logArticleAttempt = (wordId, chapterId, correct) =>
+  api.post("/article-attempts", {
+    word_id: wordId,
+    chapter_id: chapterId,
+    correct,
+  }).then((r) => r.data);

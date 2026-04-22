@@ -87,9 +87,10 @@ export default function ChapterDetail() {
                 <div style={{ display: "flex", gap: 6 }}>
                     {pos === "noun" && (
                         <MasteryButton
-                        to={`/drill/${chapterId}/articles`}
-                        label="Articles"
-                        percent={summary.mastery?.noun}
+                            to={`/drill/${chapterId}/articles`}
+                            label="Articles"
+                            percent={summary.mastery?.noun}
+                            sessionSize={summary.last_session_size}
                         />
                     )}
                     <Link
@@ -119,17 +120,20 @@ export default function ChapterDetail() {
   );
 }
 
-function MasteryButton({ to, label, percent }) {
+function MasteryButton({ to, label, percent, sessionSize }) {
   const hasData = percent !== null && percent !== undefined;
-  // Color gradient: red (low) → yellow (mid) → green (high)
   const fillColor =
     !hasData ? "#e0e0e0" :
     percent >= 80 ? "#4caf50" :
     percent >= 50 ? "#fdd835" :
     "#ef9a9a";
 
+  const tooltip = hasData
+    ? `Last session: ${percent}% (${sessionSize} attempts)`
+    : "Not drilled yet";
+
   return (
-    <Link to={to} style={styles.masteryBtn} title={hasData ? `${percent}% mastery` : "Not practiced yet"}>
+    <Link to={to} style={styles.masteryBtn} title={tooltip}>
       <span
         style={{
           ...styles.masteryFill,

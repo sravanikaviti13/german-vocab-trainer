@@ -54,3 +54,8 @@ class IngestResponse(BaseModel):
 class ReviewIn(BaseModel):
     correct: bool
     override_days: int | None = None  # explicit interval override
+
+class ArticleAttemptIn(BaseModel):
+    word_id: int
+    chapter_id: int
+    correct: bool

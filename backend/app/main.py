@@ -9,13 +9,17 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 
 from app.db import SessionLocal, init_db
-from app.models import Book, Chapter, Word, ChapterWord, WordProgress
+from app.models import Book, Chapter, Word, ChapterWord, WordProgress, ArticleAttempt
 from app.schemas import (
     BookOut, ChapterOut, WordOut, WordWithProgress,
-    IngestResponse, ReviewIn,
+    IngestResponse, ReviewIn, ArticleAttemptIn,
 )
 from app.ingest import ingest_pdf
 from app.srs import schedule_next_review
+
+from collections import defaultdict
+from typing import Literal
+
 
 app = FastAPI(title="German Vocab Trainer")
 
@@ -126,36 +130,56 @@ def get_chapter_words(
 
 @app.get("/api/chapters/{chapter_id}")
 def get_chapter_summary(chapter_id: int, db: Session = Depends(get_db)):
-    """Return chapter metadata + word counts and mastery per POS."""
+    """Return chapter metadata + word counts, plus most-recent-session article mastery."""
     chapter = db.query(Chapter).filter_by(id=chapter_id).first()
     if not chapter:
         raise HTTPException(404, "Chapter not found")
 
     counts = {"noun": 0, "verb": 0, "adjective": 0, "adverb": 0}
-    # Aggregate review stats per POS
-    seen = {"noun": 0, "verb": 0, "adjective": 0, "adverb": 0}
-    correct = {"noun": 0, "verb": 0, "adjective": 0, "adverb": 0}
-
     from datetime import date
     today = date.today()
     due = 0
 
     for cw in chapter.chapter_words:
         word = cw.word
-        pos = word.pos
-        if pos in counts:
-            counts[pos] += 1
-            progress = word.progress
-            if progress:
-                seen[pos] += progress.times_seen
-                correct[pos] += progress.times_correct
-                if progress.next_review and progress.next_review <= today:
-                    due += 1
+        if word.pos in counts:
+            counts[word.pos] += 1
+            if word.progress and word.progress.next_review and word.progress.next_review <= today:
+                due += 1
 
-    # Compute percent mastery per POS (null if no reviews yet)
-    mastery = {}
-    for pos in counts:
-        mastery[pos] = round(100 * correct[pos] / seen[pos]) if seen[pos] > 0 else None
+    # Article mastery = accuracy of the most recent article drill session.
+    # A "session" is a contiguous run of attempts with no gap >30min.
+    from datetime import timedelta
+    SESSION_GAP = timedelta(minutes=30)
+
+    attempts = (
+        db.query(ArticleAttempt)
+        .filter(ArticleAttempt.chapter_id == chapter_id)
+        .order_by(ArticleAttempt.created_at.desc())
+        .all()
+    )
+
+    article_mastery = None
+    last_session_size = 0
+
+    if attempts:
+        # Walk backward from the newest attempt, stop when gap > SESSION_GAP
+        session = [attempts[0]]
+        for i in range(1, len(attempts)):
+            gap = session[-1].created_at - attempts[i].created_at
+            if gap > SESSION_GAP:
+                break
+            session.append(attempts[i])
+        correct = sum(a.correct for a in session)
+        article_mastery = round(100 * correct / len(session))
+        last_session_size = len(session)
+
+    mastery = {
+        "noun": article_mastery,  # from the most recent drill session only
+        "verb": None,
+        "adjective": None,
+        "adverb": None,
+    }
 
     return {
         "id": chapter.id,
@@ -164,6 +188,7 @@ def get_chapter_summary(chapter_id: int, db: Session = Depends(get_db)):
         "page_range": chapter.page_range,
         "counts": counts,
         "mastery": mastery,
+        "last_session_size": last_session_size,  # for tooltip
         "total": sum(counts.values()),
         "due_today": due,
     }
@@ -206,3 +231,18 @@ def record_review(word_id: int, review: ReviewIn, db: Session = Depends(get_db))
         "times_seen": progress.times_seen,
         "interval_days": progress.interval_days,
     }
+
+@app.post("/api/article-attempts")
+def log_article_attempt(
+    attempt: ArticleAttemptIn,
+    db: Session = Depends(get_db),
+):
+    """Log a single article drill attempt for session-based mastery tracking."""
+    row = ArticleAttempt(
+        word_id=attempt.word_id,
+        chapter_id=attempt.chapter_id,
+        correct=1 if attempt.correct else 0,
+    )
+    db.add(row)
+    db.commit()
+    return {"ok": True}

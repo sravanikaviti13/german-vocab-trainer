@@ -94,3 +94,16 @@ class WordProgress(Base):
     last_reviewed = Column(DateTime)
 
     word = relationship("Word", back_populates="progress")
+
+class ArticleAttempt(Base):
+    """Log of individual article drill attempts. Powers session-based mastery."""
+    __tablename__ = "article_attempts"
+    id = Column(Integer, primary_key=True)
+    word_id = Column(Integer, ForeignKey("words.id"), nullable=False)
+    chapter_id = Column(Integer, ForeignKey("chapters.id"), nullable=False)
+    correct = Column(Integer, nullable=False)  # 0 or 1 (SQLite has no bool)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        Index("idx_attempt_chapter_time", "chapter_id", "created_at"),
+    )
