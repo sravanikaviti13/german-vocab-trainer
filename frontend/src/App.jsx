@@ -8,7 +8,7 @@ export default function App() {
     <BrowserRouter>
       <div style={styles.shell}>
         <nav style={styles.nav}>
-          <Link to="/" style={styles.brand}>🇩🇪 Vocab Trainer</Link>
+          <Link to="/" style={styles.brand}>Deutsch Vocab Trainer</Link>
           <div style={styles.links}>
             <Link to="/" style={styles.link}>Library</Link>
             <Link to="/upload" style={styles.link}>Upload</Link>
