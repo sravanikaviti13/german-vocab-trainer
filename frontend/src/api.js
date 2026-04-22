@@ -12,8 +12,11 @@ export const getChapterWords = (chapterId) =>
 export const getWordsForReview = (limit = 20) =>
   api.get("/words/review", { params: { limit } }).then((r) => r.data);
 
-export const recordReview = (wordId, correct) =>
-  api.post(`/words/${wordId}/review`, { correct }).then((r) => r.data);
+export const recordReview = (wordId, correct, overrideDays = null) => {
+  const body = { correct };
+  if (overrideDays !== null) body.override_days = overrideDays;
+  return api.post(`/words/${wordId}/review`, body).then((r) => r.data);
+};
 
 export const uploadPdf = (file, book, chapter, pages = 10) => {
   const form = new FormData();

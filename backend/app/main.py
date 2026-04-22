@@ -185,11 +185,12 @@ def record_review(word_id: int, review: ReviewIn, db: Session = Depends(get_db))
     if not progress:
         raise HTTPException(404, "Word progress not found")
 
-    schedule_next_review(progress, review.correct)
+    schedule_next_review(progress, review.correct, review.override_days)
     db.commit()
     return {
         "word_id": word_id,
         "next_review": progress.next_review,
         "strength": progress.strength,
         "times_seen": progress.times_seen,
+        "interval_days": progress.interval_days,
     }

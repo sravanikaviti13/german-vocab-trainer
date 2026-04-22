@@ -90,22 +90,30 @@ export default function Practice() {
 
   const word = queue[index];
 
-  async function answer(correct) {
-    // Record on backend
+  async function answer(correct, overrideDays = null) {
+    let result = null;
     try {
-      await recordReview(word.id, correct);
+      result = await recordReview(word.id, correct, overrideDays);
     } catch (err) {
       console.error("Failed to record review:", err);
     }
 
-    // Re-queue if wrong and option is on
+    // Re-queue if wrong, no override, and option is on
     let newQueue = queue;
-    if (!correct && requeueWrong) {
+    if (!correct && requeueWrong && overrideDays === null) {
       newQueue = [...queue, word];
       setQueue(newQueue);
     }
 
-    setHistory([...history, { word, correct }]);
+    setHistory([
+      ...history,
+      {
+        word,
+        correct,
+        overrideDays,
+        nextReview: result?.next_review,
+      },
+    ]);
     setRevealed(false);
     setIndex(index + 1);
   }
@@ -173,6 +181,25 @@ export default function Practice() {
               </button>
               <button onClick={() => answer(true)} style={styles.correct}>
                 Knew it
+              </button>
+            </div>
+
+            <div style={styles.overrideRow}>
+              <span style={styles.overrideLabel}>Or schedule manually:</span>
+              <button onClick={() => answer(false, 0)} style={styles.overrideBtn} title="Again today">
+                Again
+              </button>
+              <button onClick={() => answer(true, 1)} style={styles.overrideBtn}>
+                1d
+              </button>
+              <button onClick={() => answer(true, 3)} style={styles.overrideBtn}>
+                3d
+              </button>
+              <button onClick={() => answer(true, 7)} style={styles.overrideBtn}>
+                7d
+              </button>
+              <button onClick={() => answer(true, 30)} style={styles.overrideBtn}>
+                30d
               </button>
             </div>
           </div>
@@ -306,4 +333,26 @@ const styles = {
     boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
   },
   stat: { fontSize: "1.4rem", margin: "16px 0", fontWeight: 500 },
+
+  overrideRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: 6,
+    justifyContent: "center",
+    marginTop: 14,
+    flexWrap: "wrap",
+  },
+  overrideLabel: {
+    color: "#888",
+    fontSize: "0.85rem",
+    marginRight: 4,
+  },
+  overrideBtn: {
+    padding: "4px 10px",
+    background: "white",
+    border: "1px solid #ddd",
+    borderRadius: 6,
+    fontSize: "0.85rem",
+    color: "#555",
+  },
 };

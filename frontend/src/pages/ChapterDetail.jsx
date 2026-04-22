@@ -100,22 +100,40 @@ export default function ChapterDetail() {
 }
 
 function WordList({ words, pos }) {
-  // Sort alphabetically by lemma
   const sorted = [...words].sort((a, b) => a.lemma.localeCompare(b.lemma, "de"));
 
   return (
     <ul style={styles.wordList}>
       {sorted.map((w) => (
-        <li key={w.id} style={styles.wordItem}>
-          <div style={styles.wordMain}>
-            {w.article && <span style={styles.article}>{w.article}</span>}
-            <span style={styles.wordLemma}>{w.lemma}</span>
-            <span style={styles.wordEnglish}>— {w.english}</span>
-          </div>
-          <StrengthDots strength={w.strength} />
-        </li>
+        <WordRow key={w.id} word={w} />
       ))}
     </ul>
+  );
+}
+
+function WordRow({ word }) {
+  const [hovered, setHovered] = useState(false);
+
+  return (
+    <li
+      style={styles.wordItem}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onClick={() => setHovered((h) => !h)} // tap-to-reveal on mobile
+    >
+      <div style={styles.wordMain}>
+        {word.article && <span style={styles.article}>{word.article}</span>}
+        <span style={styles.wordLemma}>{word.lemma}</span>
+        <span style={{
+          ...styles.wordEnglish,
+          opacity: hovered ? 1 : 0,
+          transition: "opacity 0.15s",
+        }}>
+          — {word.english}
+        </span>
+      </div>
+      <StrengthDots strength={word.strength} />
+    </li>
   );
 }
 
@@ -207,6 +225,7 @@ const styles = {
     justifyContent: "space-between",
     padding: "10px 16px",
     borderBottom: "1px solid #f5f5f5",
+    cursor: "pointer",
   },
   wordMain: { display: "flex", alignItems: "baseline", gap: 6, flex: 1 },
   article: { color: "#0066cc", fontSize: "0.9rem" },
