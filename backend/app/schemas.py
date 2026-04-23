@@ -59,3 +59,14 @@ class ArticleAttemptIn(BaseModel):
     word_id: int
     chapter_id: int
     correct: bool
+
+class SentenceCheckIn(BaseModel):
+    word_id: int
+    sentence: str
+
+
+class SentenceCheckOut(BaseModel):
+    correct: bool
+    corrected: str
+    feedback: str
+    stored_id: int

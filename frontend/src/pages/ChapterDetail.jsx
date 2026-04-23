@@ -100,6 +100,12 @@ export default function ChapterDetail() {
                         Match
                     </Link>
                     <Link
+                      to={`/sentences/${chapterId}?pos=${pos}`}
+                      style={{ ...styles.practiceBtn, background: "#f3e5f5", color: "#6a1b9a" }}
+                    >
+                      Sentences
+                    </Link>
+                    <Link
                         to={`/practice/${chapterId}?pos=${pos}`}
                         style={styles.practiceBtn}
                     >

@@ -6,6 +6,7 @@ import ChapterDetail from "./pages/ChapterDetail";
 import ArticleDrill from "./pages/ArticleDrill";
 import Matching from "./pages/Matching";
 import Graph from "./pages/Graph";
+import SentencePractice from "./pages/SentencePractice";
 
 export default function App() {
   return (
@@ -28,6 +29,7 @@ export default function App() {
             <Route path="/drill/:chapterId/articles" element={<ArticleDrill />} />
             <Route path="/match/:chapterId" element={<Matching />} />
             <Route path="/graph" element={<Graph />} />
+            <Route path="/sentences/:chapterId" element={<SentencePractice />} />
           </Routes>
         </main>
       </div>

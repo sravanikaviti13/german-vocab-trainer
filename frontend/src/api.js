@@ -1,7 +1,13 @@
 import axios from "axios";
 
+//const api = axios.create({
+//  baseURL: "http://localhost:8000/api",
+//});
+
+const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000/api";
+
 const api = axios.create({
-  baseURL: "http://localhost:8000/api",
+  baseURL: API_BASE,
 });
 
 export const listBooks = () => api.get("/books").then((r) => r.data);
@@ -51,3 +57,9 @@ export const getGraph = (scope, id = null) => {
   if (id !== null) params.id = id;
   return api.get("/graph", { params }).then((r) => r.data);
 };
+
+export const checkSentence = (wordId, sentence) =>
+  api.post("/sentences/check", { word_id: wordId, sentence }).then((r) => r.data);
+
+export const listSentences = (wordId) =>
+  api.get(`/words/${wordId}/sentences`).then((r) => r.data);

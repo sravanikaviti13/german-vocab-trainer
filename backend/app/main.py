@@ -9,16 +9,18 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 
 from app.db import SessionLocal, init_db
-from app.models import Book, Chapter, Word, ChapterWord, WordProgress, ArticleAttempt
+from app.models import Book, Chapter, Word, ChapterWord, WordProgress, ArticleAttempt, Sentence
 from app.schemas import (
     BookOut, ChapterOut, WordOut, WordWithProgress,
-    IngestResponse, ReviewIn, ArticleAttemptIn,
+    IngestResponse, ReviewIn, ArticleAttemptIn, SentenceCheckIn, SentenceCheckOut,
 )
 from app.ingest import ingest_pdf
 from app.srs import schedule_next_review
 
 from collections import defaultdict
 from typing import Literal
+
+from app.sentence_validator import validate_sentence
 
 
 app = FastAPI(title="German Vocab Trainer")
@@ -27,6 +29,7 @@ app = FastAPI(title="German Vocab Trainer")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173", "http://localhost:3000"],
+    allow_origin_regex=r"https://.*\.trycloudflare\.com",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -339,3 +342,78 @@ def get_graph(
     ]
 
     return {"nodes": nodes, "edges": edges}
+
+
+@app.post("/api/sentences/check", response_model=SentenceCheckOut)
+def check_sentence(
+    payload: SentenceCheckIn,
+    db: Session = Depends(get_db),
+):
+    """Validate a user's sentence with Groq, store the result, update progress."""
+    word = db.query(Word).filter_by(id=payload.word_id).first()
+    if not word:
+        raise HTTPException(404, "Word not found")
+
+    sentence_text = payload.sentence.strip()
+    if len(sentence_text) < 3:
+        raise HTTPException(400, "Sentence too short")
+
+    result = validate_sentence(
+        word=word.lemma,
+        pos=word.pos,
+        english=word.english,
+        sentence=sentence_text,
+        article=word.article,
+    )
+
+    # Store the sentence
+    row = Sentence(
+        word_id=word.id,
+        user_text=sentence_text,
+        correct=1 if result["correct"] else 0,
+        corrected_text=result["corrected"],
+        feedback=result["feedback"],
+    )
+    db.add(row)
+
+    # Update progress: count as a review + bump sentences_written if correct
+    progress = word.progress
+    if progress:
+        progress.times_seen += 1
+        if result["correct"]:
+            progress.times_correct += 1
+            progress.sentences_written += 1
+            progress.strength = min(5, progress.strength + 1)
+
+    db.commit()
+    db.refresh(row)
+
+    return SentenceCheckOut(
+        correct=result["correct"],
+        corrected=result["corrected"],
+        feedback=result["feedback"],
+        stored_id=row.id,
+    )
+
+
+@app.get("/api/words/{word_id}/sentences")
+def list_sentences(word_id: int, db: Session = Depends(get_db)):
+    """List past sentences written for a word."""
+    rows = (
+        db.query(Sentence)
+        .filter_by(word_id=word_id)
+        .order_by(Sentence.created_at.desc())
+        .limit(50)
+        .all()
+    )
+    return [
+        {
+            "id": r.id,
+            "user_text": r.user_text,
+            "correct": bool(r.correct),
+            "corrected_text": r.corrected_text,
+            "feedback": r.feedback,
+            "created_at": r.created_at,
+        }
+        for r in rows
+    ]

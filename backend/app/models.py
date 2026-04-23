@@ -107,3 +107,19 @@ class ArticleAttempt(Base):
     __table_args__ = (
         Index("idx_attempt_chapter_time", "chapter_id", "created_at"),
     )
+
+class Sentence(Base):
+    """A user-written sentence using a specific target word."""
+    __tablename__ = "sentences"
+    id = Column(Integer, primary_key=True)
+    word_id = Column(Integer, ForeignKey("words.id"), nullable=False)
+
+    user_text = Column(Text, nullable=False)          # what the user wrote
+    correct = Column(Integer, nullable=False)          # 0 or 1
+    corrected_text = Column(Text)                      # Groq's correction if wrong
+    feedback = Column(Text)                            # explanation
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        Index("idx_sentence_word_time", "word_id", "created_at"),
+    )
