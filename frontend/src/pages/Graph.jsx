@@ -11,13 +11,13 @@ const POS_COLORS = {
 };
 
 export default function Graph() {
-  const [scope, setScope] = useState("all");
+  const [scope, setScope] = useState("book");      
   const [selectedId, setSelectedId] = useState(null);
   const [books, setBooks] = useState([]);
   const [data, setData] = useState({ nodes: [], links: [] });
   const [loading, setLoading] = useState(true);
   const [selectedNode, setSelectedNode] = useState(null);
-  const [minEdgeWeight, setMinEdgeWeight] = useState(1);
+  const [minEdgeWeight, setMinEdgeWeight] = useState(2);
 
   const fgRef = useRef();
 
@@ -66,6 +66,13 @@ export default function Graph() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scope, books.length]);
+
+  // Auto-select first book once books load (initial page load)
+  useEffect(() => {
+    if (scope === "book" && selectedId === null && books.length > 0) {
+        setSelectedId(books[0].id);
+    }
+  }, [books, scope, selectedId]);
 
   // Filter edges by minimum weight (before they get to the graph)
   const filteredData = {
@@ -143,19 +150,24 @@ export default function Graph() {
 
       <div style={styles.legend}>
         <span style={styles.legendItem}>
-          <span style={{ ...styles.dot, background: POS_COLORS.noun }} /> Noun
+            <span style={{ ...styles.dot, background: POS_COLORS.noun }} /> Noun
         </span>
         <span style={styles.legendItem}>
-          <span style={{ ...styles.dot, background: POS_COLORS.verb }} /> Verb
+            <span style={{ ...styles.dot, background: POS_COLORS.verb }} /> Verb
         </span>
         <span style={styles.legendItem}>
-          <span style={{ ...styles.dot, background: POS_COLORS.adjective }} /> Adjective
+            <span style={{ ...styles.dot, background: POS_COLORS.adjective }} /> Adjective
         </span>
         <span style={styles.legendItem}>
-          <span style={{ ...styles.dot, background: "#d0d0d0" }} /> Untouched
+            <span style={{ ...styles.dot, background: "#d0d0d0" }} /> Untouched
         </span>
+        {scope === "chapter" && (
+            <span style={styles.legendItem}>
+            <span style={{ ...styles.ring, borderColor: "#ff6b00" }} /> In this chapter
+            </span>
+        )}
         <span style={styles.legendNote}>
-          Size = usage · Darkness = strength
+            Size = usage · Darkness = strength
         </span>
       </div>
 
@@ -182,15 +194,24 @@ export default function Graph() {
             cooldownTicks={100}
             nodeCanvasObjectMode={() => "after"}
             nodeCanvasObject={(node, ctx, globalScale) => {
-              // Only label at zoom-in
-              if (globalScale < 1.4) return;
-              const label = node.lemma;
-              const fontSize = 10 / globalScale;
-              ctx.font = `${fontSize}px -apple-system, sans-serif`;
-              ctx.fillStyle = "#222";
-              ctx.textAlign = "center";
-              ctx.textBaseline = "top";
-              ctx.fillText(label, node.x, node.y + nodeSize(node) + 2);
+            // Highlight ring for seed words in chapter scope
+            if (node.highlighted) {
+                ctx.beginPath();
+                ctx.arc(node.x, node.y, nodeSize(node) + 3, 0, 2 * Math.PI);
+                ctx.strokeStyle = "#ff6b00";
+                ctx.lineWidth = 2 / globalScale;
+                ctx.stroke();
+            }
+
+            // Labels when zoomed in
+            if (globalScale < 1.4) return;
+            const label = node.lemma;
+            const fontSize = 10 / globalScale;
+            ctx.font = `${fontSize}px -apple-system, sans-serif`;
+            ctx.fillStyle = "#222";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "top";
+            ctx.fillText(label, node.x, node.y + nodeSize(node) + 2);
             }}
           />
         )}
@@ -320,4 +341,10 @@ const styles = {
   panelEnglish: { color: "#444" },
   hr: { border: "none", borderTop: "1px solid #eee", margin: "14px 0" },
   panelStats: { display: "flex", gap: 6, justifyContent: "space-between" },
+
+  ring: {
+  width: 10, height: 10, borderRadius: "50%", display: "inline-block",
+  border: "2px solid",
+  boxSizing: "border-box",
+},
 };

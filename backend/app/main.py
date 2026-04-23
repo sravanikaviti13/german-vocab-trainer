@@ -247,11 +247,9 @@ def log_article_attempt(
     db.commit()
     return {"ok": True}
 
-
-
 @app.get("/api/graph")
 def get_graph(
-    scope: Literal["all", "book", "chapter"] = "all",
+    scope: Literal["all", "book", "chapter"] = "book",
     id: int | None = None,
     db: Session = Depends(get_db),
 ):
@@ -260,27 +258,44 @@ def get_graph(
 
     scope:
       - "all": every word you have
-      - "book": words in one book (requires id = book_id)
-      - "chapter": words in one chapter (requires id = chapter_id)
+      - "book": words in one book (requires id = book_id). Edges = share a chapter in the book.
+      - "chapter": words in one chapter PLUS words they co-occur with in other chapters.
+                   Edges = share any chapter anywhere. Requires id = chapter_id.
     """
-    # Figure out which chapters are in scope
     if scope == "chapter":
         if id is None:
             raise HTTPException(400, "id required for chapter scope")
-        chapters = db.query(Chapter).filter_by(id=id).all()
+        base_chapter = db.query(Chapter).filter_by(id=id).first()
+        if not base_chapter:
+            raise HTTPException(404, "Chapter not found")
+
+        # Seed: word IDs from this chapter
+        seed_word_ids = {cw.word_id for cw in base_chapter.chapter_words}
+
+        # Expand: for each seed word, include all chapters where it also appears
+        related_chapter_ids = set()
+        for wid in seed_word_ids:
+            for cw in db.query(ChapterWord).filter_by(word_id=wid).all():
+                related_chapter_ids.add(cw.chapter_id)
+
+        chapters = db.query(Chapter).filter(Chapter.id.in_(related_chapter_ids)).all()
+        # Only include words from the seed chapter OR words sharing a chapter with them
+        # but tag the seed words so the frontend can highlight them
+        highlighted_word_ids = seed_word_ids
+
     elif scope == "book":
         if id is None:
             raise HTTPException(400, "id required for book scope")
         chapters = db.query(Chapter).filter_by(book_id=id).all()
+        highlighted_word_ids = set()
     else:
         chapters = db.query(Chapter).all()
+        highlighted_word_ids = set()
 
     if not chapters:
         return {"nodes": [], "edges": []}
 
-    chapter_ids = {c.id for c in chapters}
-
-    # Collect words appearing in these chapters + track which chapter(s) each word belongs to
+    # Collect words appearing in these chapters
     word_chapters: dict[int, set[int]] = defaultdict(set)
     words_by_id: dict[int, Word] = {}
     for ch in chapters:
@@ -295,8 +310,6 @@ def get_graph(
         times_seen = progress.times_seen if progress else 0
         times_correct = progress.times_correct if progress else 0
         strength = progress.strength if progress else 0
-
-        # Accuracy for color intensity (0.0–1.0); None if untouched
         accuracy = (times_correct / times_seen) if times_seen > 0 else None
 
         nodes.append({
@@ -308,11 +321,11 @@ def get_graph(
             "times_seen": times_seen,
             "strength": strength,
             "accuracy": accuracy,
-            "chapter_count": len(word_chapters[word_id]),  # frequency across chapters
+            "chapter_count": len(word_chapters[word_id]),
+            "highlighted": word_id in highlighted_word_ids,
         })
 
-    # Build edges: two words are connected if they share at least one chapter in scope
-    # edge weight = number of shared chapters
+    # Edges: co-occurrence within chapters in scope
     edge_weights: dict[tuple[int, int], int] = defaultdict(int)
     for ch in chapters:
         word_ids = sorted(cw.word_id for cw in ch.chapter_words)
