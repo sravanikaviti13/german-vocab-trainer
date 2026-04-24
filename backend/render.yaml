@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: vocab-backend
+    runtime: python
+    buildCommand: pip install -r requirements.txt && python -m spacy download de_core_news_lg
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: DISABLE_UPLOAD
+        value: "1"
+      - key: LLM_PROVIDER
+        value: groq

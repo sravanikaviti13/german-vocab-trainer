@@ -1,4 +1,5 @@
 """FastAPI application."""
+import os
 from pathlib import Path
 import shutil
 import tempfile
@@ -53,7 +54,6 @@ def get_db():
 def health():
     return {"status": "ok"}
 
-
 @app.post("/api/upload", response_model=IngestResponse)
 async def upload_pdf(
     file: UploadFile = File(...),
@@ -62,6 +62,11 @@ async def upload_pdf(
     pages: int = Form(10),
     db: Session = Depends(get_db),
 ):
+    if os.getenv("DISABLE_UPLOAD") == "1":
+        raise HTTPException(
+            503,
+            "Upload is disabled on the hosted server. Use the local ingest script to add chapters."
+        )
     if not file.filename.lower().endswith(".pdf"):
         raise HTTPException(400, "Only PDF files are supported.")
 
