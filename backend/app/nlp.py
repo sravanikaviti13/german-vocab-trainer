@@ -4,11 +4,16 @@ from collections import Counter
 
 import spacy
 
-print("Loading German language model...")
-_nlp = spacy.load("de_core_news_lg")
+_nlp = None
 
 GENDER_TO_ARTICLE = {"Masc": "der", "Fem": "die", "Neut": "das"}
 
+def get_nlp():
+    global _nlp
+    if _nlp is None:
+        print("Loading German language model...")
+        _nlp = spacy.load("de_core_news_lg")
+    return _nlp
 
 def _is_valid(token) -> bool:
     word = token.text
@@ -22,13 +27,14 @@ def _is_valid(token) -> bool:
         return False
     return True
 
-
 def extract_candidates(text: str) -> dict[str, dict]:
     """
     Run spaCy and return a dict of candidates, one per unique (lemma, pos).
     Returns {key: {lemma, pos, article, frequency}}
     """
-    doc = _nlp(text)
+    nlp = get_nlp()
+    doc = nlp(text)
+
     candidates = {}
     frequencies = Counter()
 
