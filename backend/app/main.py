@@ -29,8 +29,8 @@ app = FastAPI(title="German Vocab Trainer")
 # Allow browser requests from the React dev server
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000"],
-    allow_origin_regex=r"https://.*\.trycloudflare\.com",
+    allow_origins=["http://localhost:5173", "http://localhost:3000", "https://german-vocab-trainer-ten.vercel.app"],
+    allow_origin_regex=r"https://.*\.(trycloudflare\.com|vercel\.app)",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
