@@ -4,8 +4,8 @@ A personal German vocabulary learning app that extracts vocabulary from textbook
 
 Built as an open-source project for German learners at any level.
 
-![Library view showing books and chapters](https://placehold.co/800x400?text=Screenshot+coming+soon)
-
+![Library view showing books and chapters](./asserts/Library.png)
+![Practice view showing chapter](./asserts/practice.png)
 ---
 
 ## Features
