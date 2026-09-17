@@ -32,7 +32,9 @@ app = FastAPI(title="German Vocab Trainer")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173", "http://localhost:3000", "https://german-vocab-trainer-ten.vercel.app"],
-    allow_origin_regex=r"https://.*\.(trycloudflare\.com|vercel\.app)",
+    # trycloudflare/vercel previews, plus any localhost port and private LAN IP
+    # (192.168.x.x/10.x.x.x, e.g. testing from a phone on the same Wi-Fi) for local dev
+    allow_origin_regex=r"https://.*\.(trycloudflare\.com|vercel\.app)|http://(localhost|127\.0\.0\.1|192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}):\d+",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

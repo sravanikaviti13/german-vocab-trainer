@@ -84,7 +84,7 @@ export default function ChapterDetail() {
                   <span style={styles.count}>{count}</span>
                   <span style={styles.chevron}>{isOpen ? "▾" : "▸"}</span>
                 </button>
-                <div style={{ display: "flex", gap: 6 }}>
+                <div style={styles.sectionActions}>
                     {pos === "noun" && (
                         <MasteryButton
                             to={`/drill/${chapterId}/articles`}
@@ -236,6 +236,7 @@ const styles = {
   },
   sectionHeader: {
     display: "flex",
+    flexWrap: "wrap",
     alignItems: "center",
     padding: "12px 16px",
     gap: 12,
@@ -251,6 +252,12 @@ const styles = {
     fontSize: "1rem",
     textAlign: "left",
     color: "var(--color-text)",
+  },
+  sectionActions: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: 6,
+    marginLeft: "auto",
   },
   count: {
     background: "var(--color-surface-alt)",

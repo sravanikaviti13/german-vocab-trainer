@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Link } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Link, NavLink } from "react-router-dom";
 import Library from "./pages/Library";
 import Upload from "./pages/Upload";
 import Practice from "./pages/Practice";
@@ -15,12 +15,18 @@ export default function App() {
   return (
     <BrowserRouter>
       <div style={styles.shell}>
-        <nav style={styles.nav}>
+        <nav className="nav">
           <Link to="/" style={styles.brand}>Deutsch Vocab Trainer</Link>
-          <div style={styles.links}>
-            <Link to="/" style={styles.link}>Library</Link>
-            <Link to="/graph" style={styles.link}>Graph</Link>
-            <Link to="/upload" style={styles.link}>Upload</Link>
+          <div className="nav-links">
+            <NavLink to="/" end className={({ isActive }) => `nav-link${isActive ? " active" : ""}`}>
+              Library
+            </NavLink>
+            <NavLink to="/graph" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`}>
+              Graph
+            </NavLink>
+            <NavLink to="/upload" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`}>
+              Upload
+            </NavLink>
             <button
               onClick={toggleTheme}
               style={styles.themeToggle}
@@ -31,7 +37,7 @@ export default function App() {
             </button>
           </div>
         </nav>
-        <main style={styles.main}>
+        <main className="page-container">
           <Routes>
             <Route path="/" element={<Library />} />
             <Route path="/upload" element={<Upload />} />
@@ -50,17 +56,7 @@ export default function App() {
 
 const styles = {
   shell: { minHeight: "100vh" },
-  nav: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: "12px 24px",
-    background: "var(--color-surface)",
-    borderBottom: "1px solid var(--color-border)",
-  },
   brand: { fontWeight: 600, fontSize: "1.1rem", color: "var(--color-text)" },
-  links: { display: "flex", gap: 20, alignItems: "center" },
-  link: { color: "var(--color-text-secondary)" },
   themeToggle: {
     background: "var(--color-surface-alt)",
     border: "1px solid var(--color-border)",
@@ -69,5 +65,4 @@ const styles = {
     fontSize: "1rem",
     lineHeight: 1,
   },
-  main: { maxWidth: 900, margin: "0 auto", padding: 24 },
 };

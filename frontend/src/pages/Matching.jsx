@@ -27,6 +27,10 @@ export default function Matching() {
 
   const [stats, setStats] = useState({ firstTry: 0, withHelp: 0, rounds: 0 });
 
+  // Words not yet used in the current pass through the deck. Exhausted fully
+  // before any word repeats, so you finish everything unseen before a retry.
+  const queueRef = useRef([]);
+
   useEffect(() => {
     getChapterWordsFiltered(chapterId, posFilter)
       .then(setAllWords)
@@ -35,13 +39,27 @@ export default function Matching() {
 
   function startSession() {
     setSessionStarted(true);
-    loadNextRound(allWords);
+    queueRef.current = shuffle(allWords);
+    loadNextRound();
   }
 
-  function loadNextRound(pool) {
+  function loadNextRound() {
+    const pool = allWords;
     if (pool.length < 2) return;
     const roundSize = Math.min(ROUND_SIZE, pool.length);
-    const chosen = shuffle(pool).slice(0, roundSize);
+
+    if (queueRef.current.length < roundSize) {
+      // Ran out of fresh words for a full round — start a new pass, but keep
+      // whatever's left over from this pass at the front so it goes first.
+      const leftover = queueRef.current;
+      const leftoverIds = new Set(leftover.map((w) => w.id));
+      const freshShuffle = shuffle(pool.filter((w) => !leftoverIds.has(w.id)));
+      queueRef.current = [...leftover, ...freshShuffle];
+    }
+
+    const chosen = queueRef.current.slice(0, roundSize);
+    queueRef.current = queueRef.current.slice(roundSize);
+
     setRoundWords(chosen);
     setLeftCol(shuffle(chosen).map((w) => ({ word: w, matched: false })));
     setRightCol(shuffle(chosen).map((w) => ({ word: w, matched: false })));
@@ -96,7 +114,7 @@ export default function Matching() {
         // Round done, pause then load next
         setTimeout(() => {
           setStats((s) => ({ ...s, rounds: s.rounds + 1 }));
-          loadNextRound(allWords);
+          loadNextRound();
         }, 600);
       }
     } else {
@@ -152,8 +170,8 @@ export default function Matching() {
         </span>
       </div>
 
-      <div style={styles.grid}>
-        <div style={styles.col}>
+      <div className="match-grid">
+        <div className="match-col" style={styles.col}>
           <p style={styles.colHeader}>German</p>
           {leftCol.map(({ word, matched }) => (
             <Card
@@ -166,7 +184,7 @@ export default function Matching() {
             />
           ))}
         </div>
-        <div style={styles.col}>
+        <div className="match-col" style={styles.col}>
           <p style={styles.colHeader}>English</p>
           {rightCol.map(({ word, matched }) => (
             <Card
@@ -202,15 +220,20 @@ const cardStyles = {
     display: "block",
     width: "100%",
     padding: "14px 12px",
-    margin: "6px 0",
+    margin: "10px 0",
     background: "var(--color-surface)",
     border: "2px solid var(--color-border)",
-    borderRadius: 8,
+    borderRadius: "var(--radius-md)",
+    boxShadow: "var(--shadow-card)",
     fontSize: "1rem",
-    textAlign: "left",
+    textAlign: "center",
     color: "var(--color-text)",
     cursor: "pointer",
     transition: "all 0.15s",
+    appearance: "none",
+    WebkitAppearance: "none",
+    MozAppearance: "none",
+    outline: "none",
   },
   selected: {
     borderColor: "var(--color-link)",
@@ -219,8 +242,9 @@ const cardStyles = {
   },
   matched: {
     opacity: 0.35,
-    borderColor: "#4caf50",
+    borderColor: "transparent",
     background: "rgba(46, 125, 50, 0.15)",
+    boxShadow: "none",
     cursor: "default",
   },
   flashed: {
@@ -244,11 +268,6 @@ const styles = {
   progress: {},
   live: { fontSize: "0.95rem", fontWeight: 500 },
 
-  grid: {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: 16,
-  },
   col: {},
   colHeader: {
     color: "var(--color-text-muted)",
