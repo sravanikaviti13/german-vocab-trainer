@@ -95,13 +95,13 @@ export default function ChapterDetail() {
                     )}
                     <Link
                         to={`/match/${chapterId}?pos=${pos}`}
-                        style={{ ...styles.practiceBtn, background: "#e8f5e9", color: "#2e7d32" }}
+                        style={{ ...styles.practiceBtn, background: "rgba(46, 125, 50, 0.15)", color: "#2e7d32" }}
                     >
                         Match
                     </Link>
                     <Link
                       to={`/sentences/${chapterId}?pos=${pos}`}
-                      style={{ ...styles.practiceBtn, background: "#f3e5f5", color: "#6a1b9a" }}
+                      style={{ ...styles.practiceBtn, background: "rgba(106, 27, 154, 0.15)", color: "#6a1b9a" }}
                     >
                       Sentences
                     </Link>
@@ -129,7 +129,7 @@ export default function ChapterDetail() {
 function MasteryButton({ to, label, percent, sessionSize }) {
   const hasData = percent !== null && percent !== undefined;
   const fillColor =
-    !hasData ? "#e0e0e0" :
+    !hasData ? "var(--color-border)" :
     percent >= 80 ? "#4caf50" :
     percent >= 50 ? "#fdd835" :
     "#ef9a9a";
@@ -201,7 +201,7 @@ function StrengthDots({ strength }) {
           key={i}
           style={{
             ...styles.dot,
-            background: i < strength ? "#4caf50" : "#e0e0e0",
+            background: i < strength ? "#4caf50" : "var(--color-border)",
           }}
         />
       ))}
@@ -210,18 +210,18 @@ function StrengthDots({ strength }) {
 }
 
 const styles = {
-  backLink: { color: "#0066cc", fontSize: "0.9rem" },
+  backLink: { color: "var(--color-link)", fontSize: "0.9rem" },
   header: { margin: "16px 0 24px" },
-  bookTitle: { color: "#888", fontSize: "0.9rem" },
+  bookTitle: { color: "var(--color-text-muted)", fontSize: "0.9rem" },
   chapterTitle: { fontSize: "2rem", fontWeight: 600, margin: "4px 0" },
-  meta: { color: "#666", fontSize: "0.95rem" },
+  meta: { color: "var(--color-text-secondary)", fontSize: "0.95rem" },
   due: { color: "#d32f2f", fontWeight: 500 },
 
   practiceAll: {
     display: "block",
     padding: "14px 20px",
-    background: "#0066cc",
-    color: "white",
+    background: "var(--color-accent)",
+    color: "var(--color-accent-contrast)",
     borderRadius: 8,
     textAlign: "center",
     fontWeight: 500,
@@ -229,7 +229,7 @@ const styles = {
 
   sections: { display: "flex", flexDirection: "column", gap: 12 },
   section: {
-    background: "white",
+    background: "var(--color-surface)",
     borderRadius: 8,
     boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
     overflow: "hidden",
@@ -250,27 +250,28 @@ const styles = {
     padding: 0,
     fontSize: "1rem",
     textAlign: "left",
+    color: "var(--color-text)",
   },
   count: {
-    background: "#f0f0f0",
-    color: "#555",
+    background: "var(--color-surface-alt)",
+    color: "var(--color-text-secondary)",
     padding: "2px 10px",
     borderRadius: 12,
     fontSize: "0.85rem",
     fontWeight: 500,
   },
-  chevron: { color: "#999", marginLeft: "auto", fontSize: "0.9rem" },
+  chevron: { color: "var(--color-text-muted)", marginLeft: "auto", fontSize: "0.9rem" },
   practiceBtn: {
     padding: "6px 14px",
-    background: "#f0f0f0",
-    color: "#333",
+    background: "var(--color-surface-alt)",
+    color: "var(--color-text)",
     borderRadius: 6,
     fontSize: "0.9rem",
   },
 
   wordList: {
     listStyle: "none",
-    borderTop: "1px solid #eee",
+    borderTop: "1px solid var(--color-border-soft)",
     margin: 0,
     padding: 0,
   },
@@ -279,24 +280,24 @@ const styles = {
     alignItems: "center",
     justifyContent: "space-between",
     padding: "10px 16px",
-    borderBottom: "1px solid #f5f5f5",
+    borderBottom: "1px solid var(--color-border-soft)",
     cursor: "pointer",
   },
   wordMain: { display: "flex", alignItems: "baseline", gap: 6, flex: 1 },
-  article: { color: "#0066cc", fontSize: "0.9rem" },
+  article: { color: "var(--color-link)", fontSize: "0.9rem" },
   wordLemma: { fontWeight: 500 },
-  wordEnglish: { color: "#666", fontSize: "0.95rem" },
+  wordEnglish: { color: "var(--color-text-secondary)", fontSize: "0.95rem" },
 
   dots: { display: "flex", gap: 3 },
   dot: { width: 6, height: 6, borderRadius: "50%", display: "inline-block" },
 
-  loading: { padding: 16, color: "#888" },
+  loading: { padding: 16, color: "var(--color-text-muted)" },
 
   masteryBtn: {
     position: "relative",
     display: "inline-block",
     padding: "6px 14px",
-    background: "#fff3e0",
+    background: "rgba(230, 81, 0, 0.15)",
     color: "#e65100",
     borderRadius: 6,
     fontSize: "0.9rem",

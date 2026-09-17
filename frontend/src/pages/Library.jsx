@@ -48,7 +48,7 @@ export default function Library() {
 
 const styles = {
   book: {
-    background: "white",
+    background: "var(--color-surface)",
     borderRadius: 8,
     padding: 16,
     marginBottom: 16,
@@ -58,11 +58,11 @@ const styles = {
     display: "flex",
     justifyContent: "space-between",
     padding: "12px 0",
-    borderBottom: "1px solid #eee",
-    color: "#0066cc",
+    borderBottom: "1px solid var(--color-border-soft)",
+    color: "var(--color-link)",
   },
   count: {
-    color: "#888",
+    color: "var(--color-text-muted)",
     fontSize: "0.9rem",
   },
 };

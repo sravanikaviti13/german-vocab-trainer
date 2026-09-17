@@ -84,15 +84,22 @@ export default function Upload() {
 const styles = {
   container: { maxWidth: 500 },
   form: { display: "flex", flexDirection: "column", gap: 12 },
-  label: { display: "flex", flexDirection: "column", fontSize: "0.9rem", color: "#555" },
-  input: { padding: 8, borderRadius: 6, border: "1px solid #ccc", marginTop: 4 },
+  label: { display: "flex", flexDirection: "column", fontSize: "0.9rem", color: "var(--color-text-secondary)" },
+  input: {
+    padding: 8,
+    borderRadius: 6,
+    border: "1px solid var(--color-border)",
+    marginTop: 4,
+    background: "var(--color-surface)",
+    color: "var(--color-text)",
+  },
   button: {
     padding: "10px 16px",
-    background: "#0066cc",
-    color: "white",
+    background: "var(--color-accent)",
+    color: "var(--color-accent-contrast)",
     border: "none",
     borderRadius: 6,
     fontSize: "1rem",
   },
-  status: { marginTop: 16, padding: 12, background: "white", borderRadius: 6 },
+  status: { marginTop: 16, padding: 12, background: "var(--color-surface)", borderRadius: 6 },
 };

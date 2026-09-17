@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import ForceGraph2D from "react-force-graph-2d";
 import { getGraph, listBooks } from "../api";
+import { useTheme } from "../theme.jsx";
 
 const POS_COLORS = {
   noun: "#1976d2",
@@ -11,7 +12,8 @@ const POS_COLORS = {
 };
 
 export default function Graph() {
-  const [scope, setScope] = useState("book");      
+  const { theme } = useTheme();
+  const [scope, setScope] = useState("book");
   const [selectedId, setSelectedId] = useState(null);
   const [books, setBooks] = useState([]);
   const [data, setData] = useState({ nodes: [], links: [] });
@@ -208,7 +210,7 @@ export default function Graph() {
             const label = node.lemma;
             const fontSize = 10 / globalScale;
             ctx.font = `${fontSize}px -apple-system, sans-serif`;
-            ctx.fillStyle = "#222";
+            ctx.fillStyle = theme === "dark" ? "#e8e8ea" : "#222";
             ctx.textAlign = "center";
             ctx.textBaseline = "top";
             ctx.fillText(label, node.x, node.y + nodeSize(node) + 2);
@@ -266,7 +268,7 @@ function hexToRgba(hex, alpha) {
 const statStyles = {
   wrap: { textAlign: "center", minWidth: 60 },
   value: { fontSize: "1.3rem", fontWeight: 600 },
-  label: { color: "#888", fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: 0.5 },
+  label: { color: "var(--color-text-muted)", fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: 0.5 },
 };
 
 const styles = {
@@ -275,7 +277,7 @@ const styles = {
     height: "calc(100vh - 100px)",
     display: "flex",
     flexDirection: "column",
-    background: "white",
+    background: "var(--color-surface)",
     borderRadius: 12,
     overflow: "hidden",
     boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
@@ -285,28 +287,29 @@ const styles = {
     flexWrap: "wrap",
     gap: 14,
     padding: "12px 16px",
-    borderBottom: "1px solid #eee",
+    borderBottom: "1px solid var(--color-border-soft)",
     alignItems: "center",
   },
   controlGroup: { display: "flex", alignItems: "center", gap: 6 },
-  label: { color: "#666", fontSize: "0.85rem" },
+  label: { color: "var(--color-text-secondary)", fontSize: "0.85rem" },
   select: {
     padding: "4px 8px",
     borderRadius: 6,
-    border: "1px solid #ccc",
+    border: "1px solid var(--color-border)",
     fontSize: "0.9rem",
-    background: "white",
+    background: "var(--color-surface)",
+    color: "var(--color-text)",
   },
-  stats: { marginLeft: "auto", color: "#888", fontSize: "0.85rem" },
+  stats: { marginLeft: "auto", color: "var(--color-text-muted)", fontSize: "0.85rem" },
 
   legend: {
     display: "flex",
     flexWrap: "wrap",
     gap: 16,
     padding: "8px 16px",
-    borderBottom: "1px solid #eee",
+    borderBottom: "1px solid var(--color-border-soft)",
     fontSize: "0.8rem",
-    color: "#666",
+    color: "var(--color-text-secondary)",
     alignItems: "center",
   },
   legendItem: { display: "flex", alignItems: "center", gap: 5 },
@@ -318,7 +321,7 @@ const styles = {
   graphWrap: { flex: 1, position: "relative" },
   loading: {
     position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)",
-    color: "#888",
+    color: "var(--color-text-muted)",
   },
 
   panel: {
@@ -326,20 +329,20 @@ const styles = {
     right: 16,
     top: 100,
     width: 280,
-    background: "white",
+    background: "var(--color-surface)",
     borderRadius: 10,
     boxShadow: "0 4px 14px rgba(0,0,0,0.15)",
     padding: 20,
   },
   close: {
     position: "absolute", top: 8, right: 10,
-    background: "none", border: "none", fontSize: "1.3rem", color: "#999",
+    background: "none", border: "none", fontSize: "1.3rem", color: "var(--color-text-muted)",
   },
-  panelPos: { color: "#888", fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: 1 },
+  panelPos: { color: "var(--color-text-muted)", fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: 1 },
   panelTitle: { fontSize: "1.6rem", margin: "4px 0 8px" },
-  article: { color: "#0066cc" },
-  panelEnglish: { color: "#444" },
-  hr: { border: "none", borderTop: "1px solid #eee", margin: "14px 0" },
+  article: { color: "var(--color-link)" },
+  panelEnglish: { color: "var(--color-text-secondary)" },
+  hr: { border: "none", borderTop: "1px solid var(--color-border-soft)", margin: "14px 0" },
   panelStats: { display: "flex", gap: 6, justifyContent: "space-between" },
 
   ring: {

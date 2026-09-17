@@ -7,8 +7,11 @@ import ArticleDrill from "./pages/ArticleDrill";
 import Matching from "./pages/Matching";
 import Graph from "./pages/Graph";
 import SentencePractice from "./pages/SentencePractice";
+import { useTheme } from "./theme.jsx";
 
 export default function App() {
+  const { theme, toggleTheme } = useTheme();
+
   return (
     <BrowserRouter>
       <div style={styles.shell}>
@@ -18,6 +21,14 @@ export default function App() {
             <Link to="/" style={styles.link}>Library</Link>
             <Link to="/graph" style={styles.link}>Graph</Link>
             <Link to="/upload" style={styles.link}>Upload</Link>
+            <button
+              onClick={toggleTheme}
+              style={styles.themeToggle}
+              title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+              aria-label="Toggle dark mode"
+            >
+              {theme === "dark" ? "☀️" : "🌙"}
+            </button>
           </div>
         </nav>
         <main style={styles.main}>
@@ -44,11 +55,19 @@ const styles = {
     justifyContent: "space-between",
     alignItems: "center",
     padding: "12px 24px",
-    background: "white",
-    borderBottom: "1px solid #e0e0e0",
+    background: "var(--color-surface)",
+    borderBottom: "1px solid var(--color-border)",
   },
-  brand: { fontWeight: 600, fontSize: "1.1rem" },
-  links: { display: "flex", gap: 20 },
-  link: { color: "#555" },
+  brand: { fontWeight: 600, fontSize: "1.1rem", color: "var(--color-text)" },
+  links: { display: "flex", gap: 20, alignItems: "center" },
+  link: { color: "var(--color-text-secondary)" },
+  themeToggle: {
+    background: "var(--color-surface-alt)",
+    border: "1px solid var(--color-border)",
+    borderRadius: 6,
+    padding: "4px 8px",
+    fontSize: "1rem",
+    lineHeight: 1,
+  },
   main: { maxWidth: 900, margin: "0 auto", padding: 24 },
 };
