@@ -2,7 +2,7 @@ services:
   - type: web
     name: vocab-backend
     runtime: python
-    buildCommand: pip install -r requirements.txt && python -m spacy download de_core_news_lg
+    buildCommand: pip install -r requirements-prod.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: DATABASE_URL

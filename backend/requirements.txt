@@ -1,3 +1,5 @@
+# Full dev/ingest requirements (PDF upload, OCR, spaCy). The hosted deploy
+# uses requirements-prod.txt instead, since DISABLE_UPLOAD=1 there.
 spacy==3.7.5
 pdfplumber==0.11.4
 pytesseract==0.3.13

@@ -2,8 +2,6 @@
 import re
 from collections import Counter
 
-import spacy
-
 _nlp = None
 
 GENDER_TO_ARTICLE = {"Masc": "der", "Fem": "die", "Neut": "das"}
@@ -11,6 +9,7 @@ GENDER_TO_ARTICLE = {"Masc": "der", "Fem": "die", "Neut": "das"}
 def get_nlp():
     global _nlp
     if _nlp is None:
+        import spacy
         print("Loading German language model...")
         _nlp = spacy.load("de_core_news_lg")
     return _nlp

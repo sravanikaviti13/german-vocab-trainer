@@ -220,7 +220,7 @@ Run the ingest script once — tables are created automatically on first run.
 **2. Backend — Render (free tier)**
 
 - Root Directory: `backend`
-- Build Command: `pip install -r requirements.txt && python -m spacy download de_core_news_lg`
+- Build Command: `pip install -r requirements-prod.txt`
 - Start Command: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
 - Environment variables: `DATABASE_URL`, `GROQ_API_KEY`, `DISABLE_UPLOAD=1`, `LLM_PROVIDER=groq`
 

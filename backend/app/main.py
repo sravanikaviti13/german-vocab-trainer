@@ -6,7 +6,7 @@ import tempfile
 
 from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 from sqlalchemy import func
 
 from app.db import SessionLocal, init_db
@@ -14,14 +14,16 @@ from app.models import Book, Chapter, Word, ChapterWord, WordProgress, ArticleAt
 from app.schemas import (
     BookOut, ChapterOut, WordOut, WordWithProgress,
     IngestResponse, ReviewIn, ArticleAttemptIn, SentenceCheckIn, SentenceCheckOut,
+    SentencePromptsOut,
 )
-from app.ingest import ingest_pdf
 from app.srs import schedule_next_review
 
 from collections import defaultdict
 from typing import Literal
 
-from app.sentence_validator import validate_sentence
+from app.sentence_validator import validate_sentence, generate_sentence_prompts
+
+CEFR_LEVELS = {"A1", "A2", "B1", "B2"}
 
 
 app = FastAPI(title="German Vocab Trainer")
@@ -70,6 +72,10 @@ async def upload_pdf(
     if not file.filename.lower().endswith(".pdf"):
         raise HTTPException(400, "Only PDF files are supported.")
 
+    # Imported lazily: pulls in spaCy/pdfplumber/OCR deps, which aren't
+    # installed in prod (upload is disabled there via DISABLE_UPLOAD).
+    from app.ingest import ingest_pdf
+
     # Save upload to a temp file so extractor can read from disk
     with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
         shutil.copyfileobj(file.file, tmp)
@@ -92,15 +98,21 @@ async def upload_pdf(
 
 @app.get("/api/books", response_model=list[BookOut])
 def list_books(db: Session = Depends(get_db)):
-    books = db.query(Book).all()
+    books = db.query(Book).options(selectinload(Book.chapters)).all()
+
+    word_counts = dict(
+        db.query(ChapterWord.chapter_id, func.count(ChapterWord.id))
+        .group_by(ChapterWord.chapter_id)
+        .all()
+    )
+
     result = []
     for book in books:
         chapters_out = []
         for ch in book.chapters:
-            word_count = db.query(func.count(ChapterWord.id)).filter_by(chapter_id=ch.id).scalar()
             chapters_out.append(ChapterOut(
                 id=ch.id, title=ch.title, page_range=ch.page_range,
-                created_at=ch.created_at, word_count=word_count,
+                created_at=ch.created_at, word_count=word_counts.get(ch.id, 0),
             ))
         result.append(BookOut(
             id=book.id, title=book.title, language=book.language,
@@ -115,7 +127,16 @@ def get_chapter_words(
     pos: str | None = None,
     db: Session = Depends(get_db),
 ):
-    chapter = db.query(Chapter).filter_by(id=chapter_id).first()
+    chapter = (
+        db.query(Chapter)
+        .options(
+            selectinload(Chapter.chapter_words)
+            .selectinload(ChapterWord.word)
+            .selectinload(Word.progress)
+        )
+        .filter_by(id=chapter_id)
+        .first()
+    )
     if not chapter:
         raise HTTPException(404, "Chapter not found")
 
@@ -139,7 +160,17 @@ def get_chapter_words(
 @app.get("/api/chapters/{chapter_id}")
 def get_chapter_summary(chapter_id: int, db: Session = Depends(get_db)):
     """Return chapter metadata + word counts, plus most-recent-session article mastery."""
-    chapter = db.query(Chapter).filter_by(id=chapter_id).first()
+    chapter = (
+        db.query(Chapter)
+        .options(
+            selectinload(Chapter.book),
+            selectinload(Chapter.chapter_words)
+            .selectinload(ChapterWord.word)
+            .selectinload(Word.progress),
+        )
+        .filter_by(id=chapter_id)
+        .first()
+    )
     if not chapter:
         raise HTTPException(404, "Chapter not found")
 
@@ -207,6 +238,7 @@ def get_words_for_review(limit: int = 20, db: Session = Depends(get_db)):
     today = date.today()
     progress_due = (
         db.query(WordProgress)
+        .options(selectinload(WordProgress.word))
         .filter(WordProgress.next_review <= today)
         .limit(limit)
         .all()
@@ -270,23 +302,35 @@ def get_graph(
       - "chapter": words in one chapter PLUS words they co-occur with in other chapters.
                    Edges = share any chapter anywhere. Requires id = chapter_id.
     """
+    chapter_eager = selectinload(Chapter.chapter_words).selectinload(ChapterWord.word).selectinload(Word.progress)
+
     if scope == "chapter":
         if id is None:
             raise HTTPException(400, "id required for chapter scope")
-        base_chapter = db.query(Chapter).filter_by(id=id).first()
+        base_chapter = (
+            db.query(Chapter)
+            .options(selectinload(Chapter.chapter_words))
+            .filter_by(id=id)
+            .first()
+        )
         if not base_chapter:
             raise HTTPException(404, "Chapter not found")
 
         # Seed: word IDs from this chapter
         seed_word_ids = {cw.word_id for cw in base_chapter.chapter_words}
 
-        # Expand: for each seed word, include all chapters where it also appears
-        related_chapter_ids = set()
-        for wid in seed_word_ids:
-            for cw in db.query(ChapterWord).filter_by(word_id=wid).all():
-                related_chapter_ids.add(cw.chapter_id)
+        # Expand: all chapters where any seed word also appears
+        related_chapter_ids = {
+            cw.chapter_id
+            for cw in db.query(ChapterWord).filter(ChapterWord.word_id.in_(seed_word_ids)).all()
+        }
 
-        chapters = db.query(Chapter).filter(Chapter.id.in_(related_chapter_ids)).all()
+        chapters = (
+            db.query(Chapter)
+            .options(chapter_eager)
+            .filter(Chapter.id.in_(related_chapter_ids))
+            .all()
+        )
         # Only include words from the seed chapter OR words sharing a chapter with them
         # but tag the seed words so the frontend can highlight them
         highlighted_word_ids = seed_word_ids
@@ -294,10 +338,10 @@ def get_graph(
     elif scope == "book":
         if id is None:
             raise HTTPException(400, "id required for book scope")
-        chapters = db.query(Chapter).filter_by(book_id=id).all()
+        chapters = db.query(Chapter).options(chapter_eager).filter_by(book_id=id).all()
         highlighted_word_ids = set()
     else:
-        chapters = db.query(Chapter).all()
+        chapters = db.query(Chapter).options(chapter_eager).all()
         highlighted_word_ids = set()
 
     if not chapters:
@@ -397,8 +441,26 @@ def check_sentence(
         correct=result["correct"],
         corrected=result["corrected"],
         feedback=result["feedback"],
+        meaning_en=result["meaning_en"],
         stored_id=row.id,
     )
+
+
+@app.get("/api/words/{word_id}/prompts", response_model=SentencePromptsOut)
+def get_sentence_prompts(word_id: int, level: str = "A2", db: Session = Depends(get_db)):
+    """Generate a few English sentences (using this word) for the learner to translate."""
+    word = db.query(Word).filter_by(id=word_id).first()
+    if not word:
+        raise HTTPException(404, "Word not found")
+
+    level = level.upper()
+    if level not in CEFR_LEVELS:
+        raise HTTPException(400, f"level must be one of {sorted(CEFR_LEVELS)}")
+
+    prompts = generate_sentence_prompts(
+        word=word.lemma, pos=word.pos, english=word.english, level=level,
+    )
+    return SentencePromptsOut(level=level, prompts=prompts)
 
 
 @app.get("/api/words/{word_id}/sentences")

@@ -69,4 +69,10 @@ class SentenceCheckOut(BaseModel):
     correct: bool
     corrected: str
     feedback: str
+    meaning_en: str
     stored_id: int
+
+
+class SentencePromptsOut(BaseModel):
+    level: str
+    prompts: list[str]

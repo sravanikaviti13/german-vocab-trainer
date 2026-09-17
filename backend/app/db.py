@@ -17,7 +17,11 @@ if not DATABASE_URL:
 # SQLite needs a special connect_args; Postgres doesn't
 connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
 
-engine = create_engine(DATABASE_URL, echo=False, connect_args=connect_args)
+# pool_pre_ping: after Render/Supabase wake from idle, pooled connections can
+# be stale/dropped — this pings and transparently reconnects instead of erroring.
+engine = create_engine(
+    DATABASE_URL, echo=False, connect_args=connect_args, pool_pre_ping=True,
+)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 Base = declarative_base()
 

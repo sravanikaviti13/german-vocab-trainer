@@ -4,28 +4,34 @@ import re
 import shutil
 from pathlib import Path
 
-import pdfplumber
-import pytesseract
-from pdf2image import convert_from_path
+_TESSERACT_PATH = None
+POPPLER_PATH = None
 
-_TESSERACT_CANDIDATES = [
-    r"C:\Program Files\Tesseract-OCR\tesseract.exe",
-    os.path.expandvars(r"%LOCALAPPDATA%\Programs\Tesseract-OCR\tesseract.exe"),
-    shutil.which("tesseract"),
-]
-_TESSERACT_PATH = next((p for p in _TESSERACT_CANDIDATES if p and os.path.exists(p)), None)
-if _TESSERACT_PATH:
-    pytesseract.pytesseract.tesseract_cmd = _TESSERACT_PATH
 
-_POPPLER_CANDIDATES = [
-    r"C:\poppler\Library\bin",
-    r"C:\Program Files\poppler\Library\bin",
-    os.path.expandvars(r"%LOCALAPPDATA%\Programs\poppler\Library\bin"),
-]
-POPPLER_PATH = next((p for p in _POPPLER_CANDIDATES if os.path.exists(p)), None)
+def _resolve_ocr_paths():
+    global _TESSERACT_PATH, POPPLER_PATH
+    import pytesseract
+
+    tesseract_candidates = [
+        r"C:\Program Files\Tesseract-OCR\tesseract.exe",
+        os.path.expandvars(r"%LOCALAPPDATA%\Programs\Tesseract-OCR\tesseract.exe"),
+        shutil.which("tesseract"),
+    ]
+    _TESSERACT_PATH = next((p for p in tesseract_candidates if p and os.path.exists(p)), None)
+    if _TESSERACT_PATH:
+        pytesseract.pytesseract.tesseract_cmd = _TESSERACT_PATH
+
+    poppler_candidates = [
+        r"C:\poppler\Library\bin",
+        r"C:\Program Files\poppler\Library\bin",
+        os.path.expandvars(r"%LOCALAPPDATA%\Programs\poppler\Library\bin"),
+    ]
+    POPPLER_PATH = next((p for p in poppler_candidates if os.path.exists(p)), None)
 
 
 def _extract_native(pdf_path: Path, max_pages: int) -> str:
+    import pdfplumber
+
     parts = []
     with pdfplumber.open(pdf_path) as pdf:
         for page in pdf.pages[:max_pages]:
@@ -36,6 +42,10 @@ def _extract_native(pdf_path: Path, max_pages: int) -> str:
 
 
 def _extract_ocr(pdf_path: Path, max_pages: int) -> str:
+    import pytesseract
+    from pdf2image import convert_from_path
+
+    _resolve_ocr_paths()
     print("  No text found — running OCR...")
     images = convert_from_path(
         pdf_path, first_page=1, last_page=max_pages,

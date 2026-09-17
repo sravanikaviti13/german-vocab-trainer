@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams, useSearchParams, Link } from "react-router-dom";
-import { getChapterWordsFiltered, checkSentence } from "../api";
+import { getChapterWordsFiltered, checkSentence, getSentencePrompts } from "../api";
+
+const LEVELS = ["A2", "B1"];
 
 export default function SentencePractice() {
   const { chapterId } = useParams();
@@ -14,6 +16,9 @@ export default function SentencePractice() {
   const [checking, setChecking] = useState(false);
   const [result, setResult] = useState(null);
   const [stats, setStats] = useState({ correct: 0, wrong: 0 });
+  const [level, setLevel] = useState(null);
+  const [prompts, setPrompts] = useState([]);
+  const [loadingPrompts, setLoadingPrompts] = useState(false);
   const inputRef = useRef();
 
   useEffect(() => {
@@ -21,6 +26,12 @@ export default function SentencePractice() {
       .then((ws) => setWords([...ws].sort(() => Math.random() - 0.5)))
       .finally(() => setLoading(false));
   }, [chapterId, posFilter]);
+
+  // New word: drop any prompts shown for the previous word
+  useEffect(() => {
+    setLevel(null);
+    setPrompts([]);
+  }, [index]);
 
   if (loading) return <p>Loading...</p>;
   if (words.length === 0) return <p>No words to practice.</p>;
@@ -85,6 +96,24 @@ export default function SentencePractice() {
     setIndex(index + 1);
   }
 
+  async function toggleLevel(lvl) {
+    if (level === lvl) {
+      setLevel(null);
+      setPrompts([]);
+      return;
+    }
+    setLevel(lvl);
+    setLoadingPrompts(true);
+    try {
+      const r = await getSentencePrompts(word.id, lvl);
+      setPrompts(r.prompts);
+    } catch (err) {
+      setPrompts([]);
+    } finally {
+      setLoadingPrompts(false);
+    }
+  }
+
   return (
     <div style={styles.container}>
       <div style={styles.header}>
@@ -108,6 +137,38 @@ export default function SentencePractice() {
           <p style={styles.hint}>
             💡 example: <em>{word.example_de}</em>
           </p>
+        )}
+
+        <div style={styles.levelRow}>
+          <span style={styles.levelLabel}>Want a prompt to translate?</span>
+          {LEVELS.map((lvl) => (
+            <button
+              key={lvl}
+              onClick={() => toggleLevel(lvl)}
+              style={{
+                ...styles.levelBtn,
+                ...(level === lvl ? styles.levelBtnActive : {}),
+              }}
+            >
+              {lvl}
+            </button>
+          ))}
+        </div>
+
+        {level && (
+          <div style={styles.promptsBox}>
+            {loadingPrompts && <p style={styles.hint}>Loading {level} sentences...</p>}
+            {!loadingPrompts && prompts.length === 0 && (
+              <p style={styles.hint}>Couldn't load prompts, try again.</p>
+            )}
+            {!loadingPrompts && prompts.length > 0 && (
+              <ul style={styles.promptsList}>
+                {prompts.map((p, i) => (
+                  <li key={i} style={styles.promptItem}>{p}</li>
+                ))}
+              </ul>
+            )}
+          </div>
         )}
 
         <textarea
@@ -162,6 +223,12 @@ export default function SentencePractice() {
                 {result.feedback && (
                 <p style={styles.feedbackText}>{result.feedback}</p>
                 )}
+                {result.meaning_en && (
+                <p style={styles.meaning}>
+                    <span style={styles.correctedLabel}>Meaning: </span>
+                    {result.meaning_en}
+                </p>
+                )}
                 <div style={styles.feedbackButtons}>
                 <button onClick={tryAgain} style={styles.tryAgainBtn}>
                     {result.correct ? "Another for this word" : "Try again"}
@@ -198,6 +265,33 @@ const styles = {
   article: { color: "#0066cc" },
   english: { color: "#444", fontSize: "1.05rem" },
   hint: { color: "#888", fontSize: "0.9rem", margin: "12px 0 20px" },
+
+  levelRow: {
+    display: "flex", alignItems: "center", gap: 8, marginBottom: 12,
+  },
+  levelLabel: { color: "#888", fontSize: "0.85rem" },
+  levelBtn: {
+    padding: "4px 12px",
+    background: "white",
+    border: "1px solid #ccc",
+    borderRadius: 20,
+    color: "#555",
+    fontSize: "0.85rem",
+  },
+  levelBtnActive: {
+    background: "#0066cc",
+    borderColor: "#0066cc",
+    color: "white",
+  },
+  promptsBox: {
+    background: "#f7f9fc",
+    border: "1px solid #e0e6ee",
+    borderRadius: 8,
+    padding: "10px 14px",
+    marginBottom: 16,
+  },
+  promptsList: { margin: 0, paddingLeft: 18 },
+  promptItem: { color: "#333", fontSize: "0.95rem", margin: "4px 0" },
 
   textarea: {
     width: "100%",
@@ -241,6 +335,7 @@ const styles = {
   corrected: { margin: "6px 0", color: "#222" },
   correctedLabel: { color: "#888", fontSize: "0.9rem" },
   feedbackText: { color: "#555", fontSize: "0.95rem", marginTop: 8 },
+  meaning: { color: "#555", fontSize: "0.9rem", marginTop: 6, fontStyle: "italic" },
   nextBtn: {
     padding: "8px 20px",
     background: "#0066cc",
