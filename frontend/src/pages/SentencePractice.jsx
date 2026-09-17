@@ -184,7 +184,7 @@ export default function SentencePractice() {
             ...styles.textarea,
             borderColor: result
               ? result.correct ? "#4caf50" : "#c33"
-              : "#ccc",
+              : "var(--color-border)",
           }}
           autoFocus
         />
@@ -208,7 +208,7 @@ export default function SentencePractice() {
         {result && (
             <div style={{
                 ...styles.feedback,
-                background: result.correct ? "#e8f5e9" : "#fee",
+                background: result.correct ? "rgba(46, 125, 50, 0.15)" : "rgba(204, 51, 51, 0.15)",
                 borderLeftColor: result.correct ? "#2e7d32" : "#c33",
             }}>
                 <p style={styles.feedbackTitle}>
@@ -248,78 +248,80 @@ const styles = {
   container: { maxWidth: 640, margin: "0 auto" },
   header: {
     display: "flex", justifyContent: "space-between", alignItems: "center",
-    marginBottom: 16, color: "#666", fontSize: "0.9rem",
+    marginBottom: 16, color: "var(--color-text-secondary)", fontSize: "0.9rem",
   },
-  backLink: { color: "#0066cc" },
+  backLink: { color: "var(--color-link)" },
   progress: {},
   live: { fontSize: "0.95rem", fontWeight: 500 },
 
   card: {
-    background: "white",
+    background: "var(--color-surface)",
     borderRadius: 12,
     padding: 28,
     boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
   },
-  prompt: { color: "#888", fontSize: "0.9rem", textTransform: "uppercase", letterSpacing: 1 },
+  prompt: { color: "var(--color-text-muted)", fontSize: "0.9rem", textTransform: "uppercase", letterSpacing: 1 },
   word: { fontSize: "2.4rem", fontWeight: 500, margin: "8px 0 4px" },
-  article: { color: "#0066cc" },
-  english: { color: "#444", fontSize: "1.05rem" },
-  hint: { color: "#888", fontSize: "0.9rem", margin: "12px 0 20px" },
+  article: { color: "var(--color-link)" },
+  english: { color: "var(--color-text-secondary)", fontSize: "1.05rem" },
+  hint: { color: "var(--color-text-muted)", fontSize: "0.9rem", margin: "12px 0 20px" },
 
   levelRow: {
     display: "flex", alignItems: "center", gap: 8, marginBottom: 12,
   },
-  levelLabel: { color: "#888", fontSize: "0.85rem" },
+  levelLabel: { color: "var(--color-text-muted)", fontSize: "0.85rem" },
   levelBtn: {
     padding: "4px 12px",
-    background: "white",
-    border: "1px solid #ccc",
+    background: "var(--color-surface)",
+    border: "1px solid var(--color-border)",
     borderRadius: 20,
-    color: "#555",
+    color: "var(--color-text-secondary)",
     fontSize: "0.85rem",
   },
   levelBtnActive: {
-    background: "#0066cc",
-    borderColor: "#0066cc",
-    color: "white",
+    background: "var(--color-accent)",
+    borderColor: "var(--color-accent)",
+    color: "var(--color-accent-contrast)",
   },
   promptsBox: {
-    background: "#f7f9fc",
-    border: "1px solid #e0e6ee",
+    background: "var(--color-surface-alt)",
+    border: "1px solid var(--color-border)",
     borderRadius: 8,
     padding: "10px 14px",
     marginBottom: 16,
   },
   promptsList: { margin: 0, paddingLeft: 18 },
-  promptItem: { color: "#333", fontSize: "0.95rem", margin: "4px 0" },
+  promptItem: { color: "var(--color-text)", fontSize: "0.95rem", margin: "4px 0" },
 
   textarea: {
     width: "100%",
     minHeight: 80,
     padding: 12,
-    border: "2px solid #ccc",
+    border: "2px solid var(--color-border)",
     borderRadius: 8,
     fontSize: "1.05rem",
     fontFamily: "inherit",
     resize: "vertical",
     boxSizing: "border-box",
     transition: "border-color 0.15s",
+    background: "var(--color-surface)",
+    color: "var(--color-text)",
   },
   buttons: {
     display: "flex", justifyContent: "space-between", gap: 12, marginTop: 12,
   },
   skipBtn: {
     padding: "10px 16px",
-    background: "white",
-    border: "1px solid #ddd",
+    background: "var(--color-surface)",
+    border: "1px solid var(--color-border)",
     borderRadius: 8,
-    color: "#555",
+    color: "var(--color-text-secondary)",
     fontSize: "0.95rem",
   },
   submitBtn: {
     padding: "10px 24px",
-    background: "#0066cc",
-    color: "white",
+    background: "var(--color-accent)",
+    color: "var(--color-accent-contrast)",
     border: "none",
     borderRadius: 8,
     fontSize: "1rem",
@@ -332,22 +334,22 @@ const styles = {
     borderRadius: 6,
   },
   feedbackTitle: { fontWeight: 600, marginBottom: 6 },
-  corrected: { margin: "6px 0", color: "#222" },
-  correctedLabel: { color: "#888", fontSize: "0.9rem" },
-  feedbackText: { color: "#555", fontSize: "0.95rem", marginTop: 8 },
-  meaning: { color: "#555", fontSize: "0.9rem", marginTop: 6, fontStyle: "italic" },
+  corrected: { margin: "6px 0", color: "var(--color-text)" },
+  correctedLabel: { color: "var(--color-text-muted)", fontSize: "0.9rem" },
+  feedbackText: { color: "var(--color-text-secondary)", fontSize: "0.95rem", marginTop: 8 },
+  meaning: { color: "var(--color-text-secondary)", fontSize: "0.9rem", marginTop: 6, fontStyle: "italic" },
   nextBtn: {
     padding: "8px 20px",
-    background: "#0066cc",
-    color: "white",
+    background: "var(--color-accent)",
+    color: "var(--color-accent-contrast)",
     border: "none",
     borderRadius: 6,
   },
 
-  hintKey: { textAlign: "center", color: "#aaa", fontSize: "0.8rem", marginTop: 12 },
+  hintKey: { textAlign: "center", color: "var(--color-text-faint)", fontSize: "0.8rem", marginTop: 12 },
 
   done: {
-    textAlign: "center", padding: 40, background: "white",
+    textAlign: "center", padding: 40, background: "var(--color-surface)",
     borderRadius: 12, maxWidth: 400, margin: "40px auto",
     boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
   },
@@ -360,10 +362,10 @@ const styles = {
   },
   tryAgainBtn: {
     padding: "8px 16px",
-    background: "white",
-    border: "1px solid #ccc",
+    background: "var(--color-surface)",
+    border: "1px solid var(--color-border)",
     borderRadius: 6,
-    color: "#555",
+    color: "var(--color-text-secondary)",
     fontSize: "0.95rem",
   },
 };
