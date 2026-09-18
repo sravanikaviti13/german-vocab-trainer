@@ -37,10 +37,12 @@ export default function ChapterDetail() {
   if (loading) return <p>Loading...</p>;
   if (!summary) return <p>Chapter not found.</p>;
 
+  const isGrammar = summary.book_kind === "grammar";
+
   return (
     <div>
-      <Link to="/" style={styles.backLink}>
-        ← Library
+      <Link to={isGrammar ? "/grammar" : "/"} style={styles.backLink}>
+        ← {isGrammar ? "Grammar" : "Library"}
       </Link>
       <div style={styles.header}>
         <p style={styles.bookTitle}>{summary.book_title}</p>
@@ -56,14 +58,22 @@ export default function ChapterDetail() {
         </p>
       </div>
 
-      <div style={styles.topActions}>
-        <Link to={`/match/${chapterId}`} style={{ ...styles.practiceAll, background: "#2e7d32" }}>
-            Match all →
+      {isGrammar && (
+        <Link to={`/chapters/${chapterId}/add-words`} style={styles.addWordsLink}>
+          + Add words
         </Link>
-        <Link to={`/practice/${chapterId}`} style={styles.practiceAll}>
-            Practice all →
-        </Link>
-      </div>
+      )}
+
+      {summary.total > 0 && (
+        <div style={styles.topActions}>
+          <Link to={`/match/${chapterId}`} style={{ ...styles.practiceAll, background: "#2e7d32" }}>
+              Match all →
+          </Link>
+          <Link to={`/practice/${chapterId}`} style={styles.practiceAll}>
+              Practice all →
+          </Link>
+        </div>
+      )}
 
       <div style={styles.sections}>
         {Object.entries(summary.counts).map(([pos, count]) => {
@@ -225,6 +235,15 @@ const styles = {
     borderRadius: 8,
     textAlign: "center",
     fontWeight: 500,
+  },
+  addWordsLink: {
+    display: "inline-block",
+    marginBottom: 16,
+    padding: "8px 16px",
+    border: "1px dashed var(--color-border)",
+    borderRadius: "var(--radius-sm)",
+    color: "var(--color-link)",
+    fontSize: "0.9rem",
   },
 
   sections: { display: "flex", flexDirection: "column", gap: 12 },

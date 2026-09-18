@@ -3,7 +3,7 @@ import os
 from pathlib import Path
 
 from dotenv import load_dotenv
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import sessionmaker, declarative_base
 
 load_dotenv(Path(__file__).parent.parent / ".env")
@@ -35,9 +35,22 @@ def get_session():
         raise
 
 
+def _run_migrations():
+    """Small additive migrations create_all() won't apply to existing tables."""
+    inspector = inspect(engine)
+    if "books" not in inspector.get_table_names():
+        return  # fresh DB, create_all already made it with the current schema
+    columns = {c["name"] for c in inspector.get_columns("books")}
+    if "kind" not in columns:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE books ADD COLUMN kind VARCHAR(20) DEFAULT 'vocab' NOT NULL"))
+        print("Migrated: added books.kind")
+
+
 def init_db():
     from app import models  # noqa: F401
     Base.metadata.create_all(bind=engine)
+    _run_migrations()
     # Show a truncated form to avoid leaking credentials in logs
     display = DATABASE_URL if len(DATABASE_URL) < 60 else DATABASE_URL[:40] + "..."
     print(f"Database initialized at {display}")

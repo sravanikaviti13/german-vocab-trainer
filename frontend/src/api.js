@@ -66,3 +66,15 @@ export const getSentencePrompts = (wordId, level) =>
 
 export const listSentences = (wordId) =>
   api.get(`/words/${wordId}/sentences`).then((r) => r.data);
+
+export const listGrammarTopics = () =>
+  api.get("/grammar/topics").then((r) => r.data);
+
+export const createGrammarTopic = (title) =>
+  api.post("/grammar/topics", { title }).then((r) => r.data);
+
+export const addWordToChapter = (chapterId, word) =>
+  api.post(`/chapters/${chapterId}/words`, word).then((r) => r.data);
+
+export const addWordsToChapterBulk = (chapterId, items) =>
+  api.post(`/chapters/${chapterId}/words/bulk`, { items }).then((r) => r.data);

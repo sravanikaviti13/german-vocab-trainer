@@ -7,6 +7,8 @@ import ArticleDrill from "./pages/ArticleDrill";
 import Matching from "./pages/Matching";
 import Graph from "./pages/Graph";
 import SentencePractice from "./pages/SentencePractice";
+import Grammar from "./pages/Grammar";
+import AddWords from "./pages/AddWords";
 import { useTheme } from "./theme.jsx";
 
 export default function App() {
@@ -20,6 +22,9 @@ export default function App() {
           <div className="nav-links">
             <NavLink to="/" end className={({ isActive }) => `nav-link${isActive ? " active" : ""}`}>
               Library
+            </NavLink>
+            <NavLink to="/grammar" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`}>
+              Grammar
             </NavLink>
             <NavLink to="/graph" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`}>
               Graph
@@ -41,7 +46,9 @@ export default function App() {
           <Routes>
             <Route path="/" element={<Library />} />
             <Route path="/upload" element={<Upload />} />
+            <Route path="/grammar" element={<Grammar />} />
             <Route path="/chapters/:chapterId" element={<ChapterDetail />} />
+            <Route path="/chapters/:chapterId/add-words" element={<AddWords />} />
             <Route path="/practice/:chapterId" element={<Practice />} />
             <Route path="/drill/:chapterId/articles" element={<ArticleDrill />} />
             <Route path="/match/:chapterId" element={<Matching />} />

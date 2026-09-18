@@ -39,6 +39,7 @@ class BookOut(OrmBase):
     id: int
     title: str
     language: str
+    kind: str = "vocab"
     chapters: list[ChapterOut] = []
 
 
@@ -76,3 +77,26 @@ class SentenceCheckOut(BaseModel):
 class SentencePromptsOut(BaseModel):
     level: str
     prompts: list[str]
+
+
+class GrammarTopicIn(BaseModel):
+    title: str
+
+
+class WordManualIn(BaseModel):
+    lemma: str
+    pos: str  # "noun" | "verb" | "adjective" | "adverb"
+    article: Optional[str] = None  # "der" | "die" | "das", nouns only
+    plural: Optional[str] = None
+    english: str
+    example_de: Optional[str] = None
+    example_en: Optional[str] = None
+
+
+class WordBulkIn(BaseModel):
+    items: list[WordManualIn]
+
+
+class WordBulkOut(BaseModel):
+    saved: int
+    words: list[WordOut]

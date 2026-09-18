@@ -14,7 +14,7 @@ from app.models import Book, Chapter, Word, ChapterWord, WordProgress, ArticleAt
 from app.schemas import (
     BookOut, ChapterOut, WordOut, WordWithProgress,
     IngestResponse, ReviewIn, ArticleAttemptIn, SentenceCheckIn, SentenceCheckOut,
-    SentencePromptsOut,
+    SentencePromptsOut, GrammarTopicIn, WordManualIn, WordBulkIn, WordBulkOut,
 )
 from app.srs import schedule_next_review
 
@@ -100,7 +100,8 @@ async def upload_pdf(
 
 @app.get("/api/books", response_model=list[BookOut])
 def list_books(db: Session = Depends(get_db)):
-    books = db.query(Book).options(selectinload(Book.chapters)).all()
+    # Grammar topics live under their own book but get their own page/endpoint
+    books = db.query(Book).options(selectinload(Book.chapters)).filter_by(kind="vocab").all()
 
     word_counts = dict(
         db.query(ChapterWord.chapter_id, func.count(ChapterWord.id))
@@ -117,10 +118,127 @@ def list_books(db: Session = Depends(get_db)):
                 created_at=ch.created_at, word_count=word_counts.get(ch.id, 0),
             ))
         result.append(BookOut(
-            id=book.id, title=book.title, language=book.language,
+            id=book.id, title=book.title, language=book.language, kind=book.kind,
             chapters=chapters_out,
         ))
     return result
+
+
+GRAMMAR_BOOK_TITLE = "Grammar Topics"
+
+
+def _get_or_create_grammar_book(db: Session) -> Book:
+    book = db.query(Book).filter_by(kind="grammar").first()
+    if not book:
+        book = Book(title=GRAMMAR_BOOK_TITLE, language="de", kind="grammar")
+        db.add(book)
+        db.commit()
+        db.refresh(book)
+    return book
+
+
+@app.get("/api/grammar/topics", response_model=list[ChapterOut])
+def list_grammar_topics(db: Session = Depends(get_db)):
+    book = db.query(Book).options(selectinload(Book.chapters)).filter_by(kind="grammar").first()
+    if not book:
+        return []
+
+    word_counts = dict(
+        db.query(ChapterWord.chapter_id, func.count(ChapterWord.id))
+        .group_by(ChapterWord.chapter_id)
+        .all()
+    )
+    return [
+        ChapterOut(
+            id=ch.id, title=ch.title, page_range=ch.page_range,
+            created_at=ch.created_at, word_count=word_counts.get(ch.id, 0),
+        )
+        for ch in book.chapters
+    ]
+
+
+@app.post("/api/grammar/topics", response_model=ChapterOut)
+def create_grammar_topic(payload: GrammarTopicIn, db: Session = Depends(get_db)):
+    title = payload.title.strip()
+    if not title:
+        raise HTTPException(400, "Title is required")
+
+    book = _get_or_create_grammar_book(db)
+    existing = db.query(Chapter).filter_by(book_id=book.id, title=title).first()
+    if existing:
+        raise HTTPException(409, "A topic with this title already exists")
+
+    chapter = Chapter(book_id=book.id, title=title)
+    db.add(chapter)
+    db.commit()
+    db.refresh(chapter)
+    return ChapterOut(
+        id=chapter.id, title=chapter.title, page_range=chapter.page_range,
+        created_at=chapter.created_at, word_count=0,
+    )
+
+
+def _add_word_to_chapter(db: Session, chapter_id: int, word_in: WordManualIn) -> Word:
+    lemma = word_in.lemma.strip()
+    if word_in.pos == "noun":
+        lemma = lemma[:1].upper() + lemma[1:]
+
+    word = db.query(Word).filter_by(lemma=lemma, pos=word_in.pos).first()
+    if not word:
+        example_de, example_en = word_in.example_de, word_in.example_en
+        if not example_de and not example_en:
+            from app.translator import generate_example
+            generated = generate_example(lemma, word_in.pos, word_in.english.strip(), word_in.article)
+            example_de, example_en = generated["example_de"], generated["example_en"]
+
+        word = Word(
+            lemma=lemma, pos=word_in.pos, article=word_in.article,
+            plural=word_in.plural, english=word_in.english.strip(),
+            example_de=example_de, example_en=example_en,
+        )
+        db.add(word)
+        db.flush()  # get word.id before creating dependent rows
+        db.add(WordProgress(word_id=word.id))
+
+    link = db.query(ChapterWord).filter_by(chapter_id=chapter_id, word_id=word.id).first()
+    if link:
+        link.frequency += 1
+    else:
+        db.add(ChapterWord(chapter_id=chapter_id, word_id=word.id, frequency=1))
+
+    return word
+
+
+@app.post("/api/chapters/{chapter_id}/words", response_model=WordOut)
+def add_word_to_chapter(chapter_id: int, payload: WordManualIn, db: Session = Depends(get_db)):
+    chapter = db.query(Chapter).filter_by(id=chapter_id).first()
+    if not chapter:
+        raise HTTPException(404, "Chapter not found")
+    if not payload.lemma.strip() or not payload.english.strip():
+        raise HTTPException(400, "lemma and english are required")
+
+    word = _add_word_to_chapter(db, chapter_id, payload)
+    db.commit()
+    db.refresh(word)
+    return word
+
+
+@app.post("/api/chapters/{chapter_id}/words/bulk", response_model=WordBulkOut)
+def add_words_to_chapter_bulk(chapter_id: int, payload: WordBulkIn, db: Session = Depends(get_db)):
+    chapter = db.query(Chapter).filter_by(id=chapter_id).first()
+    if not chapter:
+        raise HTTPException(404, "Chapter not found")
+
+    saved_words = []
+    for item in payload.items:
+        if not item.lemma.strip() or not item.english.strip():
+            continue
+        saved_words.append(_add_word_to_chapter(db, chapter_id, item))
+
+    db.commit()
+    for w in saved_words:
+        db.refresh(w)
+    return WordBulkOut(saved=len(saved_words), words=saved_words)
 
 
 @app.get("/api/chapters/{chapter_id}/words", response_model=list[WordWithProgress])
@@ -226,6 +344,7 @@ def get_chapter_summary(chapter_id: int, db: Session = Depends(get_db)):
         "id": chapter.id,
         "title": chapter.title,
         "book_title": chapter.book.title,
+        "book_kind": chapter.book.kind,
         "page_range": chapter.page_range,
         "counts": counts,
         "mastery": mastery,

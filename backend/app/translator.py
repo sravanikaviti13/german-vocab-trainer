@@ -119,6 +119,32 @@ def get_provider() -> LLMProvider:
     return _provider
 
 
+EXAMPLE_PROMPT_TEMPLATE = """Give one short, simple German example sentence using the German word
+"{word}" ({pos}, meaning "{english}"{article_note}).
+
+Return ONLY a JSON object:
+- "example_de": the German sentence
+- "example_en": its English translation
+"""
+
+
+def generate_example(word: str, pos: str, english: str, article: str | None = None) -> dict:
+    """Generate a short example sentence for a manually-added word with none provided."""
+    article_note = f', article "{article}"' if article and pos == "noun" else ""
+    prompt = EXAMPLE_PROMPT_TEMPLATE.format(word=word, pos=pos, english=english, article_note=article_note)
+    try:
+        raw = get_provider().generate_json(prompt)
+        result = json.loads(raw)
+    except Exception as e:
+        print(f"  Example generation failed for '{word}': {e}")
+        return {"example_de": None, "example_en": None}
+
+    return {
+        "example_de": str(result.get("example_de", "")).strip() or None,
+        "example_en": str(result.get("example_en", "")).strip() or None,
+    }
+
+
 def _call_llm(words: list[str]) -> list[dict | None]:
     prompt = PROMPT_TEMPLATE.format(words=json.dumps(words, ensure_ascii=False))
     raw = get_provider().generate_json(prompt)

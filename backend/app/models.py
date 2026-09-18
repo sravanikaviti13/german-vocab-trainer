@@ -17,6 +17,7 @@ class Book(Base):
     id = Column(Integer, primary_key=True)
     title = Column(String(200), nullable=False, unique=True)
     language = Column(String(10), default="de")
+    kind = Column(String(20), nullable=False, default="vocab")  # "vocab" | "grammar"
     created_at = Column(DateTime, default=datetime.utcnow)
 
     chapters = relationship("Chapter", back_populates="book", cascade="all, delete-orphan")
