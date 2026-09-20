@@ -38,12 +38,21 @@ APP_PASSWORD = os.getenv("APP_PASSWORD")
 AUTH_TOKEN = hashlib.sha256(APP_PASSWORD.encode()).hexdigest() if APP_PASSWORD else None
 PUBLIC_PATHS = {"/api/health", "/api/auth/login", "/api/auth/status"}
 
+# These two GET endpoints stay reachable without a password, but return an
+# empty list instead of real content — so the app looks like a working,
+# empty instance to a visitor rather than an outright wall. Everything else
+# (a specific chapter, adding/deleting words, sentence checks, etc.) still
+# requires the password.
+EMPTY_WHEN_UNAUTHENTICATED = {"/api/books", "/api/grammar/topics"}
+
 
 @app.middleware("http")
 async def auth_gate(request: Request, call_next):
     if AUTH_TOKEN and request.method != "OPTIONS" and request.url.path not in PUBLIC_PATHS:
         header = request.headers.get("authorization", "")
         if not hmac.compare_digest(header, f"Bearer {AUTH_TOKEN}"):
+            if request.method == "GET" and request.url.path in EMPTY_WHEN_UNAUTHENTICATED:
+                return JSONResponse([])
             return JSONResponse({"detail": "Unauthorized"}, status_code=401)
     return await call_next(request)
 

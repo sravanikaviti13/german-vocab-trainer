@@ -10,6 +10,7 @@ import SentencePractice from "./pages/SentencePractice";
 import Grammar from "./pages/Grammar";
 import AddWords from "./pages/AddWords";
 import { useTheme } from "./theme.jsx";
+import LoginControl from "./LoginControl.jsx";
 
 export default function App() {
   const { theme, toggleTheme } = useTheme();
@@ -40,6 +41,7 @@ export default function App() {
             >
               {theme === "dark" ? "☀️" : "🌙"}
             </button>
+            <LoginControl />
           </div>
         </nav>
         <main className="page-container">

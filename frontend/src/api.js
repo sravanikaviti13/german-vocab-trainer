@@ -17,12 +17,17 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// A rejected/expired token means the stored one is no longer valid — drop it
-// and reload so AuthGate shows the password screen again.
+// Only clear+reload when we HAD a token and it got rejected (expired/invalid) —
+// not for a never-logged-in visitor, or every 401 on a gated page would loop
+// (clear does nothing, reload, same request, same 401, forever).
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401 && error.config?.url !== "/auth/login") {
+    if (
+      error.response?.status === 401 &&
+      error.config?.url !== "/auth/login" &&
+      localStorage.getItem(TOKEN_KEY)
+    ) {
       localStorage.removeItem(TOKEN_KEY);
       window.location.reload();
     }
@@ -37,6 +42,7 @@ export const login = (password) =>
 
 export const getStoredToken = () => localStorage.getItem(TOKEN_KEY);
 export const storeToken = (token) => localStorage.setItem(TOKEN_KEY, token);
+export const clearStoredToken = () => localStorage.removeItem(TOKEN_KEY);
 
 export const listBooks = () => api.get("/books").then((r) => r.data);
 
