@@ -99,4 +99,5 @@ class WordBulkIn(BaseModel):
 
 class WordBulkOut(BaseModel):
     saved: int
+    duplicates: int = 0
     words: list[WordOut]

@@ -78,3 +78,6 @@ export const addWordToChapter = (chapterId, word) =>
 
 export const addWordsToChapterBulk = (chapterId, items) =>
   api.post(`/chapters/${chapterId}/words/bulk`, { items }).then((r) => r.data);
+
+export const removeWordFromChapter = (chapterId, wordId) =>
+  api.delete(`/chapters/${chapterId}/words/${wordId}`).then((r) => r.data);

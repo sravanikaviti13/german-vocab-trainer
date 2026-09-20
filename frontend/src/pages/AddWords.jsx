@@ -195,7 +195,7 @@ function BulkMode({ chapterId }) {
     setError(null);
     try {
       const res = await addWordsToChapterBulk(chapterId, items);
-      setResult({ saved: res.saved, skipped, words: res.words });
+      setResult({ saved: res.saved, duplicates: res.duplicates, skipped, words: res.words });
       setText("");
     } catch (err) {
       setError(err.response?.data?.detail || "Couldn't add those words.");
@@ -243,7 +243,8 @@ function BulkMode({ chapterId }) {
         <div style={styles.addedList}>
           <p style={styles.addedTitle}>
             Added {result.saved} word{result.saved === 1 ? "" : "s"}
-            {result.skipped > 0 && ` (${result.skipped} line${result.skipped === 1 ? "" : "s"} skipped — couldn't parse)`}
+            {result.skipped > 0 && ` · ${result.skipped} skipped (couldn't parse)`}
+            {result.duplicates > 0 && ` · ${result.duplicates} skipped (already in this topic)`}
           </p>
           {result.words.map((w) => (
             <div key={w.id} style={styles.addedItem}>

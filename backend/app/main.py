@@ -164,7 +164,11 @@ def create_grammar_topic(payload: GrammarTopicIn, db: Session = Depends(get_db))
         raise HTTPException(400, "Title is required")
 
     book = _get_or_create_grammar_book(db)
-    existing = db.query(Chapter).filter_by(book_id=book.id, title=title).first()
+    existing = (
+        db.query(Chapter)
+        .filter(Chapter.book_id == book.id, func.lower(Chapter.title) == title.lower())
+        .first()
+    )
     if existing:
         raise HTTPException(409, "A topic with this title already exists")
 
@@ -178,13 +182,22 @@ def create_grammar_topic(payload: GrammarTopicIn, db: Session = Depends(get_db))
     )
 
 
+class DuplicateWordError(Exception):
+    pass
+
+
 def _add_word_to_chapter(db: Session, chapter_id: int, word_in: WordManualIn) -> Word:
+    """Add lemma/pos to the chapter. Raises DuplicateWordError if it's already there."""
     lemma = word_in.lemma.strip()
     if word_in.pos == "noun":
         lemma = lemma[:1].upper() + lemma[1:]
 
     word = db.query(Word).filter_by(lemma=lemma, pos=word_in.pos).first()
-    if not word:
+    if word:
+        existing_link = db.query(ChapterWord).filter_by(chapter_id=chapter_id, word_id=word.id).first()
+        if existing_link:
+            raise DuplicateWordError(f'"{lemma}" is already in this topic')
+    else:
         example_de, example_en = word_in.example_de, word_in.example_en
         if not example_de and not example_en:
             from app.translator import generate_example
@@ -200,12 +213,7 @@ def _add_word_to_chapter(db: Session, chapter_id: int, word_in: WordManualIn) ->
         db.flush()  # get word.id before creating dependent rows
         db.add(WordProgress(word_id=word.id))
 
-    link = db.query(ChapterWord).filter_by(chapter_id=chapter_id, word_id=word.id).first()
-    if link:
-        link.frequency += 1
-    else:
-        db.add(ChapterWord(chapter_id=chapter_id, word_id=word.id, frequency=1))
-
+    db.add(ChapterWord(chapter_id=chapter_id, word_id=word.id, frequency=1))
     return word
 
 
@@ -217,7 +225,10 @@ def add_word_to_chapter(chapter_id: int, payload: WordManualIn, db: Session = De
     if not payload.lemma.strip() or not payload.english.strip():
         raise HTTPException(400, "lemma and english are required")
 
-    word = _add_word_to_chapter(db, chapter_id, payload)
+    try:
+        word = _add_word_to_chapter(db, chapter_id, payload)
+    except DuplicateWordError as e:
+        raise HTTPException(409, str(e))
     db.commit()
     db.refresh(word)
     return word
@@ -230,15 +241,46 @@ def add_words_to_chapter_bulk(chapter_id: int, payload: WordBulkIn, db: Session 
         raise HTTPException(404, "Chapter not found")
 
     saved_words = []
+    duplicates = 0
+    seen_in_batch = set()
     for item in payload.items:
         if not item.lemma.strip() or not item.english.strip():
             continue
-        saved_words.append(_add_word_to_chapter(db, chapter_id, item))
+        key = (item.lemma.strip().lower(), item.pos)
+        if key in seen_in_batch:
+            duplicates += 1
+            continue  # repeated within the pasted text itself
+        seen_in_batch.add(key)
+        try:
+            saved_words.append(_add_word_to_chapter(db, chapter_id, item))
+        except DuplicateWordError:
+            duplicates += 1
 
     db.commit()
     for w in saved_words:
         db.refresh(w)
-    return WordBulkOut(saved=len(saved_words), words=saved_words)
+    return WordBulkOut(saved=len(saved_words), duplicates=duplicates, words=saved_words)
+
+
+@app.delete("/api/chapters/{chapter_id}/words/{word_id}")
+def remove_word_from_chapter(chapter_id: int, word_id: int, db: Session = Depends(get_db)):
+    link = db.query(ChapterWord).filter_by(chapter_id=chapter_id, word_id=word_id).first()
+    if not link:
+        raise HTTPException(404, "Word not found in this chapter")
+    db.delete(link)
+    db.flush()
+
+    # If the word isn't used anywhere else, clean it up fully instead of
+    # leaving an orphaned row (and so re-adding the same lemma isn't blocked).
+    other_links = db.query(ChapterWord).filter_by(word_id=word_id).first()
+    has_sentences = db.query(Sentence).filter_by(word_id=word_id).first()
+    has_attempts = db.query(ArticleAttempt).filter_by(word_id=word_id).first()
+    if not other_links and not has_sentences and not has_attempts:
+        db.query(WordProgress).filter_by(word_id=word_id).delete()
+        db.query(Word).filter_by(id=word_id).delete()
+
+    db.commit()
+    return {"ok": True}
 
 
 @app.get("/api/chapters/{chapter_id}/words", response_model=list[WordWithProgress])

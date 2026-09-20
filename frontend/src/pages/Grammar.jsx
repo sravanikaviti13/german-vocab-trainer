@@ -40,10 +40,6 @@ export default function Grammar() {
   return (
     <div>
       <h2>Grammar</h2>
-      <p style={styles.subtitle}>
-        Topics you build yourself — e.g. "Dativ verbs" — with your own word lists
-        and the same matching/practice/sentence exercises as your books.
-      </p>
 
       <form onSubmit={handleCreate} className="card" style={styles.form}>
         <input

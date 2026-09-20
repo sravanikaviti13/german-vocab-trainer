@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { getChapterSummary, getChapterWordsFiltered } from "../api";
+import { getChapterSummary, getChapterWordsFiltered, removeWordFromChapter } from "../api";
 
 const POS_LABELS = {
   noun: { label: "Nouns", emoji: "📦", color: "#1976d2" },
@@ -32,6 +32,20 @@ export default function ChapterDetail() {
       const words = await getChapterWordsFiltered(chapterId, pos);
       setWordsCache({ ...wordsCache, [pos]: words });
     }
+  }
+
+  async function handleDeleteWord(word) {
+    const confirmed = window.confirm(
+      `Delete "${word.article ? word.article + " " : ""}${word.lemma}" from this topic? This can't be undone.`
+    );
+    if (!confirmed) return;
+
+    await removeWordFromChapter(chapterId, word.id);
+    setWordsCache((cache) => ({
+      ...cache,
+      [word.pos]: (cache[word.pos] || []).filter((w) => w.id !== word.id),
+    }));
+    getChapterSummary(chapterId).then(setSummary);
   }
 
   if (loading) return <p>Loading...</p>;
@@ -125,7 +139,11 @@ export default function ChapterDetail() {
               </div>
 
               {isOpen && wordsCache[pos] && (
-                <WordList words={wordsCache[pos]} pos={pos} />
+                <WordList
+                  words={wordsCache[pos]}
+                  pos={pos}
+                  onDelete={isGrammar ? handleDeleteWord : null}
+                />
               )}
               {isOpen && !wordsCache[pos] && <p style={styles.loading}>Loading…</p>}
             </div>
@@ -165,19 +183,19 @@ function MasteryButton({ to, label, percent, sessionSize }) {
   );
 }
 
-function WordList({ words, pos }) {
+function WordList({ words, pos, onDelete }) {
   const sorted = [...words].sort((a, b) => a.lemma.localeCompare(b.lemma, "de"));
 
   return (
     <ul style={styles.wordList}>
       {sorted.map((w) => (
-        <WordRow key={w.id} word={w} />
+        <WordRow key={w.id} word={w} onDelete={onDelete} />
       ))}
     </ul>
   );
 }
 
-function WordRow({ word }) {
+function WordRow({ word, onDelete }) {
   const [hovered, setHovered] = useState(false);
 
   return (
@@ -198,7 +216,22 @@ function WordRow({ word }) {
           — {word.english}
         </span>
       </div>
-      <StrengthDots strength={word.strength} />
+      <div style={styles.wordActions}>
+        <StrengthDots strength={word.strength} />
+        {onDelete && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation(); // don't trigger the row's tap-to-reveal
+              onDelete(word);
+            }}
+            style={styles.deleteBtn}
+            title="Delete word"
+            aria-label={`Delete ${word.lemma}`}
+          >
+            🗑
+          </button>
+        )}
+      </div>
     </li>
   );
 }
@@ -316,6 +349,16 @@ const styles = {
 
   dots: { display: "flex", gap: 3 },
   dot: { width: 6, height: 6, borderRadius: "50%", display: "inline-block" },
+
+  wordActions: { display: "flex", alignItems: "center", gap: 10 },
+  deleteBtn: {
+    background: "none",
+    border: "none",
+    color: "var(--color-text-muted)",
+    fontSize: "0.95rem",
+    padding: 4,
+    lineHeight: 1,
+  },
 
   loading: { padding: 16, color: "var(--color-text-muted)" },
 
