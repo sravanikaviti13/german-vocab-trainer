@@ -18,7 +18,6 @@ Built as a learning project — open source, free to fork and adapt.
 - [How it's organized](#how-its-organized)
 - [Getting started](#getting-started)
 - [Deployment](#deployment)
-- [How spaced repetition works](#how-spaced-repetition-works)
 - [LLM usage and rate limits](#llm-usage-and-rate-limits)
 - [Contributing](#contributing)
 - [License](#license)
@@ -266,34 +265,13 @@ frontend shows a one-time password screen (remembered on that browser
 via `localStorage`, so you won't be asked again on your own phone).
 
 Leave `APP_PASSWORD` unset for local dev — no gate, no extra step.
-
-This protects *your* data on *your* deployment. It has nothing to do
-with the source code being public: anyone can still fork this repo and
-run their own separate copy with their own password and their own list.
+Forking and running your own copy is unaffected.
 
 ### Adding chapters after deployment
 
 With `DATABASE_URL` pointed at Supabase in your local `.env`, the ingest
 script writes straight to the production database. New chapters show up
 on your phone as soon as ingestion finishes — no redeploy needed.
-
----
-
-## How spaced repetition works
-
-Every word starts with `interval_days = 0` (due today). After each
-review:
-
-| Outcome | Next review |
-|---|---|
-| Correct, first time | 1 day |
-| Correct again | 3 → 7 → 14 → 30 → 60 → 120 days |
-| Wrong | 1 day (resets) |
-| Manual override | Whatever interval you set |
-
-The "re-queue wrong answers" option in a session brings missed words
-back before the session ends, so you see them again in minutes — the
-long-term schedule above is separate from that.
 
 ---
 
