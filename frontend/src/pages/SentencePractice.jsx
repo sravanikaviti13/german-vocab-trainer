@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useParams, useSearchParams, Link } from "react-router-dom";
 import { getChapterWordsFiltered, checkSentence, getSentencePrompts } from "../api";
 
-const LEVELS = ["A2", "B1"];
+const LEVELS = ["A1", "A2", "B1", "B2", "C1", "C2"];
 
 export default function SentencePractice() {
   const { chapterId } = useParams();
@@ -96,8 +96,9 @@ export default function SentencePractice() {
     setIndex(index + 1);
   }
 
-  async function toggleLevel(lvl) {
-    if (level === lvl) {
+  async function handleLevelChange(e) {
+    const lvl = e.target.value;
+    if (!lvl) {
       setLevel(null);
       setPrompts([]);
       return;
@@ -141,18 +142,12 @@ export default function SentencePractice() {
 
         <div style={styles.levelRow}>
           <span style={styles.levelLabel}>Want a prompt to translate?</span>
-          {LEVELS.map((lvl) => (
-            <button
-              key={lvl}
-              onClick={() => toggleLevel(lvl)}
-              style={{
-                ...styles.levelBtn,
-                ...(level === lvl ? styles.levelBtnActive : {}),
-              }}
-            >
-              {lvl}
-            </button>
-          ))}
+          <select value={level || ""} onChange={handleLevelChange} style={styles.levelSelect}>
+            <option value="">— choose level —</option>
+            {LEVELS.map((lvl) => (
+              <option key={lvl} value={lvl}>{lvl}</option>
+            ))}
+          </select>
         </div>
 
         {level && (
@@ -270,18 +265,13 @@ const styles = {
     display: "flex", alignItems: "center", gap: 8, marginBottom: 12,
   },
   levelLabel: { color: "var(--color-text-muted)", fontSize: "0.85rem" },
-  levelBtn: {
-    padding: "4px 12px",
+  levelSelect: {
+    padding: "4px 10px",
     background: "var(--color-surface)",
     border: "1px solid var(--color-border)",
-    borderRadius: 20,
-    color: "var(--color-text-secondary)",
-    fontSize: "0.85rem",
-  },
-  levelBtnActive: {
-    background: "var(--color-accent)",
-    borderColor: "var(--color-accent)",
-    color: "var(--color-accent-contrast)",
+    borderRadius: "var(--radius-sm)",
+    color: "var(--color-text)",
+    fontSize: "0.9rem",
   },
   promptsBox: {
     background: "var(--color-surface-alt)",

@@ -26,7 +26,7 @@ from typing import Literal
 
 from app.sentence_validator import validate_sentence, generate_sentence_prompts
 
-CEFR_LEVELS = {"A1", "A2", "B1", "B2"}
+CEFR_LEVELS = {"A1", "A2", "B1", "B2", "C1", "C2"}
 
 
 app = FastAPI(title="German Vocab Trainer")
