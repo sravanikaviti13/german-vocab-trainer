@@ -5,10 +5,38 @@ import axios from "axios";
 //});
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000/api";
+const TOKEN_KEY = "auth_token";
 
 const api = axios.create({
   baseURL: API_BASE,
 });
+
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem(TOKEN_KEY);
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
+
+// A rejected/expired token means the stored one is no longer valid — drop it
+// and reload so AuthGate shows the password screen again.
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401 && error.config?.url !== "/auth/login") {
+      localStorage.removeItem(TOKEN_KEY);
+      window.location.reload();
+    }
+    return Promise.reject(error);
+  }
+);
+
+export const getAuthStatus = () => api.get("/auth/status").then((r) => r.data);
+
+export const login = (password) =>
+  api.post("/auth/login", { password }).then((r) => r.data);
+
+export const getStoredToken = () => localStorage.getItem(TOKEN_KEY);
+export const storeToken = (token) => localStorage.setItem(TOKEN_KEY, token);
 
 export const listBooks = () => api.get("/books").then((r) => r.data);
 

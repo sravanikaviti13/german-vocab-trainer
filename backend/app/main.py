@@ -1,11 +1,14 @@
 """FastAPI application."""
+import hashlib
+import hmac
 import os
 from pathlib import Path
 import shutil
 import tempfile
 
-from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form
+from fastapi import FastAPI, Depends, HTTPException, Request, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session, selectinload
 from sqlalchemy import func
 
@@ -28,7 +31,26 @@ CEFR_LEVELS = {"A1", "A2", "B1", "B2"}
 
 app = FastAPI(title="German Vocab Trainer")
 
-# Allow browser requests from the React dev server
+# Optional gate: if APP_PASSWORD is set, every request (except health check
+# and login) must carry a matching bearer token. Unset (e.g. local dev by
+# default) means no gate at all.
+APP_PASSWORD = os.getenv("APP_PASSWORD")
+AUTH_TOKEN = hashlib.sha256(APP_PASSWORD.encode()).hexdigest() if APP_PASSWORD else None
+PUBLIC_PATHS = {"/api/health", "/api/auth/login", "/api/auth/status"}
+
+
+@app.middleware("http")
+async def auth_gate(request: Request, call_next):
+    if AUTH_TOKEN and request.method != "OPTIONS" and request.url.path not in PUBLIC_PATHS:
+        header = request.headers.get("authorization", "")
+        if not hmac.compare_digest(header, f"Bearer {AUTH_TOKEN}"):
+            return JSONResponse({"detail": "Unauthorized"}, status_code=401)
+    return await call_next(request)
+
+
+# Registered AFTER auth_gate so it wraps OUTSIDE it — CORS headers must be
+# added even to the 401 responses auth_gate returns, or the browser reports
+# a generic CORS failure instead of a readable 401.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173", "http://localhost:3000", "https://german-vocab-trainer-ten.vercel.app"],
@@ -39,6 +61,21 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.get("/api/auth/status")
+def auth_status():
+    return {"login_required": bool(APP_PASSWORD)}
+
+
+@app.post("/api/auth/login")
+def login(payload: dict):
+    if not APP_PASSWORD:
+        raise HTTPException(404, "Login is not enabled")
+    password = str(payload.get("password", ""))
+    if not hmac.compare_digest(password, APP_PASSWORD):
+        raise HTTPException(401, "Wrong password")
+    return {"token": AUTH_TOKEN}
 
 
 @app.on_event("startup")

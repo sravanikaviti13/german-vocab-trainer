@@ -13,3 +13,5 @@ services:
         value: "1"
       - key: LLM_PROVIDER
         value: groq
+      - key: APP_PASSWORD
+        sync: false

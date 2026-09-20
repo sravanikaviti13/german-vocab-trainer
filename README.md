@@ -1,83 +1,147 @@
-# 🇩🇪 German Vocab Trainer
+# German Vocab Trainer
 
-A personal German vocabulary learning app that extracts vocabulary from textbook PDFs, organizes it by grammar category, and lets you practice through multiple exercise modes — with spaced repetition, AI-powered sentence validation, and a live vocabulary network graph.
+A personal German vocabulary trainer. Upload textbook PDFs and it extracts
+the vocabulary automatically, or build your own grammar topic lists by hand.
+Practice with four exercise modes, spaced repetition, and AI-checked
+sentence writing.
 
-Built as an open-source project for German learners at any level.
+Built as a learning project — open source, free to fork and adapt.
 
-![Library view showing books and chapters](./asserts/Library.png)
-![Practice view showing chapter](./asserts/practice.png)
+![Library view](./asserts/main_page.png)
+
+---
+
+## Contents
+
+- [Features](#features)
+- [Tech stack](#tech-stack)
+- [How it's organized](#how-its-organized)
+- [Getting started](#getting-started)
+- [Deployment](#deployment)
+- [How spaced repetition works](#how-spaced-repetition-works)
+- [LLM usage and rate limits](#llm-usage-and-rate-limits)
+- [Contributing](#contributing)
+- [License](#license)
+
 ---
 
 ## Features
 
-- **PDF ingestion** — upload a scanned or text-based PDF chapter; the app OCRs it, extracts vocabulary, and translates it automatically
-- **Organized by grammar** — words are grouped into nouns (with articles), verbs, adjectives, and adverbs
-- **Four practice modes:**
-  - **Flipcard review** — classic spaced repetition with a "knew it / didn't know" flow
-  - **Article drill** — rapid-fire der / die / das quiz for nouns (keyboard shortcuts supported)
-  - **Matching** — click a German word, click its English meaning; first-try accuracy tracked separately
-  - **Sentence writing** — write a sentence using the target word; Groq AI checks grammar and gives specific feedback
-- **Spaced repetition** — SM-2-style scheduling. Words you know go away for days; words you miss come back tomorrow. Optional per-word schedule override.
-- **Article mastery tracking** — the Articles button shows your accuracy from the most recent drill session (not a lifetime average that hides forgetting)
-- **Vocabulary network graph** — force-directed graph where node size = usage, darkness = mastery, edges = chapter co-occurrence. Zoom in to see labels. Click a node for word details.
-- **Cloud deployment** — frontend on Vercel, backend on Render, database on Supabase Postgres. Mobile-friendly.
+**Two ways to build a word list**
+
+- Upload a PDF chapter. The app OCRs it if needed, extracts vocabulary
+  with spaCy, and translates it with an LLM.
+- Or build your own **Grammar** topics by hand — e.g. "Dativ verbs" or
+  "Modal verbs" — typing words one at a time or pasting a whole list at
+  once. Missing example sentences are generated automatically.
+
+  ![Grammar topics list](./asserts/grammar_page.png)
+
+**Four practice modes**, available on both PDF chapters and your own
+Grammar topics:
+
+- **Flashcard review** — spaced repetition, "knew it / didn't know".
+- **Article drill** — rapid der / die / das quiz, keyboard shortcuts.
+- **Matching** — tap a German word, then its English meaning. Every word
+  in the set gets used once before any word repeats.
+- **Sentence writing** — write a sentence with the target word. An LLM
+  checks the grammar, explains what's wrong, and shows the English
+  meaning. You can also ask it for A2/B1-level practice prompts.
+
+<table>
+<tr>
+<td><img src="./asserts/grammar_practice.png" width="380" alt="A grammar topic, with its word list and exercise buttons"><br><em>A grammar topic</em></td>
+<td><img src="./asserts/practice.png" width="380" alt="A vocab chapter, same layout, from an uploaded PDF"><br><em>A vocab chapter, from an uploaded PDF</em></td>
+</tr>
+</table>
+
+**Other things worth knowing**
+
+- Spaced repetition (SM-2 style): words you know go away for longer,
+  words you miss come back tomorrow.
+- Article mastery is your *most recent* drill session's accuracy, not a
+  lifetime average — so it actually reflects what you've forgotten.
+- A force-directed graph of your whole vocabulary: node size shows how
+  often a word comes up, darkness shows mastery, edges show which words
+  share a chapter.
+- Light and dark mode.
+- Deployed to the cloud so it works other devices.
 
 ---
 
-## Tech Stack
+## Tech stack
 
 | Layer | Technology |
 |---|---|
 | Frontend | React + Vite, react-force-graph-2d |
 | Backend | Python 3.12, FastAPI, SQLAlchemy |
-| Database | SQLite (local dev) → Supabase Postgres (production) |
-| NLP | spaCy `de_core_news_lg` — lemmatization, POS tagging, gender detection |
-| OCR | Tesseract (German language pack) + Poppler via pdf2image |
-| PDF text extraction | pdfplumber (falls back to OCR automatically) |
-| LLM | Groq API — `llama-3.3-70b-versatile` for translations and sentence validation |
-| Deployment | Vercel (frontend), Render (backend), Supabase (database) |
+| Database | SQLite for local dev, Supabase Postgres in production |
+| NLP | spaCy `de_core_news_lg` for lemmatization, POS tagging, gender |
+| OCR | Tesseract (German pack) + Poppler via pdf2image |
+| PDF text | pdfplumber, falls back to OCR automatically |
+| LLM | Groq API for translation, grammar checking, example sentences |
+| Hosting | Vercel (frontend), Render (backend), Supabase (database) |
 
 ---
 
-## Architecture
+## How it's organized
+
+PDF ingestion (OCR, NLP, translation) runs on your own machine and writes
+straight to the cloud database. That keeps Tesseract off the server —
+the deployed backend only has to serve practice and review requests,
+which keeps it small and fast to cold-start.
 
 ```
-┌─────────────────────┐        ┌──────────────────────────┐
-│  Frontend (Vercel)  │──────▶│  Backend (Render)         │
-│  React + Vite       │        │  FastAPI + SQLAlchemy     │
-└─────────────────────┘        └──────────────┬───────────┘
-                                              │
-                                              ▼
-                                ┌──────────────────────────┐
-                                │  Supabase Postgres        │
-                                │  (cloud database)         │
-                                └──────────────▲───────────┘
-                                              │
-                                ┌─────────────┴──────────┐
-                                │  Your laptop            │
-                                │  Runs ingest script     │
-                                │  (OCR + translation)    │
-                                └────────────────────────┘
+Your laptop                        Render (backend)             Vercel (frontend)
+┌─────────────────┐                ┌─────────────────┐          ┌────────────────┐
+│ ingest script   │ ──writes────▶  │ FastAPI        │  ◀─────▶ │ React app     │
+│ OCR + NLP + LLM │                │ SQLAlchemy      │          │                │
+└─────────────────┘                └───────┬─────────┘          └────────────────┘
+                                           │
+                                           ▼
+                                  ┌────────────────┐
+                                  │ Supabase       │
+                                  │ Postgres       │
+                                  └────────────────┘
 ```
 
-PDF ingestion (OCR, NLP, translation) runs locally and writes directly to the cloud database. The deployed backend handles all practice and review. This avoids the complexity of running Tesseract on a cloud server.
+Grammar topics skip the PDF step entirely — you add words straight
+through the app, and they use the same database tables and the same
+practice pages as PDF-ingested vocab.
+
+### Database schema
+
+```
+books ──< chapters ──< chapter_words >── words
+                                          │
+                                          ├── word_progress    (SRS state)
+                                          ├── article_attempts (drill history)
+                                          └── sentences        (written sentences)
+```
+
+A word is stored once and shared across chapters — if `der Berg` shows up
+in three chapters, there's one row in `words` and three rows in
+`chapter_words`. Grammar topics are just a `book` with `kind = "grammar"`,
+so they reuse this same schema and every existing exercise page.
 
 ---
 
-## Getting Started
+## Getting started
 
 ### Prerequisites
 
 - Python 3.12
 - Node.js 20+
-- [Tesseract OCR](https://github.com/UB-Mannheim/tesseract/wiki) with the German language pack (`deu`) installed
-- [Poppler for Windows](https://github.com/oschwartz10612/poppler-windows/releases) (for PDF-to-image conversion)
+- [Tesseract OCR](https://github.com/UB-Mannheim/tesseract/wiki) with the
+  German pack (`deu`) — only needed for PDF ingestion
+- [Poppler for Windows](https://github.com/oschwartz10612/poppler-windows/releases)
+  — same, only for PDF ingestion
 - A free [Groq API key](https://console.groq.com/keys)
 
 ### 1. Clone the repo
 
 ```bash
-git clone https://github.com/your-username/german-vocab-trainer.git
+git clone https://github.com/sravanikaviti13/german-vocab-trainer.git
 cd german-vocab-trainer
 ```
 
@@ -101,8 +165,9 @@ Create `backend/.env`:
 ```env
 GROQ_API_KEY=your_groq_key_here
 LLM_PROVIDER=groq
-# Leave DATABASE_URL blank to use local SQLite (default)
-# DATABASE_URL=postgresql://...  ← add this for cloud Postgres
+# Leave DATABASE_URL unset to use local SQLite (default).
+# Set it to a Postgres URL (e.g. Supabase) to use cloud Postgres instead.
+# DATABASE_URL=postgresql://...
 ```
 
 Start the backend:
@@ -111,7 +176,7 @@ Start the backend:
 uvicorn app.main:app --reload --port 8000
 ```
 
-API docs available at [http://localhost:8000/docs](http://localhost:8000/docs)
+API docs: [http://localhost:8000/docs](http://localhost:8000/docs)
 
 ### 3. Frontend setup
 
@@ -121,7 +186,7 @@ npm install
 npm run dev
 ```
 
-App available at [http://localhost:5173](http://localhost:5173)
+App: [http://localhost:5173](http://localhost:5173)
 
 Create `frontend/.env.local`:
 
@@ -129,9 +194,10 @@ Create `frontend/.env.local`:
 VITE_API_BASE=http://localhost:8000/api
 ```
 
-### 4. Ingest your first chapter
+### 4. Add some words
 
-Put a German PDF in `backend/sample_pdf/` and run:
+Either open **Grammar** in the app and type words in directly, or ingest a
+PDF chapter from the command line:
 
 ```bash
 python scripts/ingest_pdf.py sample_pdf/your_chapter.pdf \
@@ -140,164 +206,140 @@ python scripts/ingest_pdf.py sample_pdf/your_chapter.pdf \
   --pages 5
 ```
 
-The script auto-detects whether the PDF is text-based or scanned, runs OCR if needed, extracts vocabulary with spaCy, translates using Groq, and saves everything to the database.
-
----
-
-## Project Structure
-
-```
-german-vocab-trainer/
-├── backend/
-│   ├── app/
-│   │   ├── main.py              # FastAPI routes
-│   │   ├── models.py            # SQLAlchemy ORM models
-│   │   ├── schemas.py           # Pydantic request/response schemas
-│   │   ├── db.py                # Database connection (SQLite or Postgres)
-│   │   ├── ingest.py            # Ingestion pipeline orchestrator
-│   │   ├── extractor.py         # PDF text extraction + OCR
-│   │   ├── nlp.py               # spaCy NLP pipeline
-│   │   ├── translator.py        # Groq/Gemini LLM client with batching + cache
-│   │   ├── sentence_validator.py# German grammar checker via Groq
-│   │   ├── srs.py               # Spaced repetition scheduler (SM-2)
-│   │   └── translation_cache.py # File-based JSON cache for translations
-│   ├── scripts/
-│   │   ├── ingest_pdf.py        # CLI entry point for ingestion
-│   │   ├── show_db.py           # Quick DB summary
-│   │   └── migrate_to_postgres.py # One-time SQLite → Postgres migration
-│   ├── requirements.txt
-│   ├── runtime.txt              # Pins Python 3.12 for Render
-│   └── .env.example
-├── frontend/
-│   ├── src/
-│   │   ├── pages/
-│   │   │   ├── Library.jsx       # Book/chapter list
-│   │   │   ├── ChapterDetail.jsx # Chapter overview with POS sections
-│   │   │   ├── Upload.jsx        # PDF upload form
-│   │   │   ├── Practice.jsx      # Flipcard review with SRS
-│   │   │   ├── ArticleDrill.jsx  # der/die/das drill
-│   │   │   ├── Matching.jsx      # Matching exercise
-│   │   │   ├── SentencePractice.jsx # Sentence writing with AI feedback
-│   │   │   └── Graph.jsx         # Vocabulary network graph
-│   │   ├── api.js                # Axios API client
-│   │   └── App.jsx               # Router
-│   └── package.json
-└── README.md
-```
-
----
-
-## Database Schema
-
-```
-books ──< chapters ──< chapter_words >── words
-                                          │
-                                          ├── word_progress   (SRS state)
-                                          ├── article_attempts (drill history)
-                                          └── sentences        (written sentences)
-```
-
-Words are stored once and shared across chapters. If `der Berg` appears in three chapters, there's one row in `words` and three rows in `chapter_words`. This enables the cross-chapter network graph and avoids translation duplication.
+The script detects whether the PDF is text-based or scanned, OCRs it if
+needed, extracts vocabulary with spaCy, translates with Groq, and saves
+everything to the database.
 
 ---
 
 ## Deployment
 
-### Cloud deployment (recommended for mobile access)
+The app is split across three free tiers: database, backend, frontend.
+Ingestion still runs on your own machine and writes straight to the cloud
+database — see [How it's organized](#how-its-organized).
 
-The app uses a split deployment: ingestion runs locally (OCR stays on your machine), everything else is cloud-hosted.
+### 1. Database — Supabase
 
-**1. Database — Supabase (free)**
-
-Create a project at [supabase.com](https://supabase.com), get the Transaction pooler connection string, and add it to `backend/.env`:
+Create a project at [supabase.com](https://supabase.com), grab the
+**Transaction pooler** connection string, and put it in `backend/.env`:
 
 ```env
 DATABASE_URL=postgresql://postgres.xxx:[password]@aws-0-eu-central-1.pooler.supabase.com:6543/postgres
 ```
 
-Run the ingest script once — tables are created automatically on first run.
+Tables are created (and lightly migrated) automatically the first time
+the backend starts.
 
-**2. Backend — Render (free tier)**
+### 2. Backend — Render
 
-- Root Directory: `backend`
-- Build Command: `pip install -r requirements-prod.txt`
-- Start Command: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
-- Environment variables: `DATABASE_URL`, `GROQ_API_KEY`, `DISABLE_UPLOAD=1`, `LLM_PROVIDER=groq`
+- Root directory: `backend`
+- Build command: `pip install -r requirements-prod.txt`
+- Start command: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+- Environment variables: `DATABASE_URL`, `GROQ_API_KEY`,
+  `DISABLE_UPLOAD=1`, `LLM_PROVIDER=groq`, and optionally `APP_PASSWORD`
+  (see [Protecting your deployment](#protecting-your-deployment))
 
-Note: free tier sleeps after 15 minutes of inactivity. First request after idle takes ~30 seconds to wake up.
+`requirements-prod.txt` deliberately excludes spaCy, OCR, and PDF
+libraries — the hosted backend never runs ingestion (`DISABLE_UPLOAD=1`
+turns that endpoint off), so it doesn't need them. That keeps the
+deployed image small and the cold-start faster.
 
-**3. Frontend — Vercel (free)**
+Free-tier note: Render sleeps a service after 15 minutes idle. The first
+request after that takes 20–40 seconds to wake up. That's a Render
+limitation, not something the app can fix from the inside — an
+always-on paid instance, or a different host with `min-instances`,
+removes it entirely.
 
-- Root Directory: `frontend`
+### 3. Frontend — Vercel
+
+- Root directory: `frontend`
 - Framework: Vite (auto-detected)
-- Environment variable: `VITE_API_BASE=https://your-backend.onrender.com/api`
+- Environment variable:
+  `VITE_API_BASE=https://your-backend.onrender.com/api`
 
-**Ingesting new chapters after deployment**
+### Protecting your deployment
 
-With `DATABASE_URL` pointing at Supabase in your local `backend/.env`, the ingest script writes directly to the cloud database. Your phone sees new chapters immediately after ingest finishes.
+There's no user-account system — anyone with your Vercel/Render URLs can
+read and write your data unless you set one thing: `APP_PASSWORD` on the
+backend (Render). Once it's set, every API request needs it, and the
+frontend shows a one-time password screen (remembered on that browser
+via `localStorage`, so you won't be asked again on your own phone).
 
-```bash
-python scripts/ingest_pdf.py new_chapter.pdf --book "My Book" --chapter "Chapter 3" --pages 5
-```
+Leave `APP_PASSWORD` unset for local dev — no gate, no extra step.
+
+This protects *your* data on *your* deployment. It has nothing to do
+with the source code being public: anyone can still fork this repo and
+run their own separate copy with their own password and their own list.
+
+### Adding chapters after deployment
+
+With `DATABASE_URL` pointed at Supabase in your local `.env`, the ingest
+script writes straight to the production database. New chapters show up
+on your phone as soon as ingestion finishes — no redeploy needed.
 
 ---
 
-## How Spaced Repetition Works
+## How spaced repetition works
 
-Words start with `interval_days = 0` (review today). After each practice session:
+Every word starts with `interval_days = 0` (due today). After each
+review:
 
 | Outcome | Next review |
 |---|---|
-| Correct (first time) | 1 day |
-| Correct (again) | 3 days → 7 → 14 → 30 → 60 → 120 |
-| Wrong | 1 day (reset) |
-| Manual override | Your chosen interval |
+| Correct, first time | 1 day |
+| Correct again | 3 → 7 → 14 → 30 → 60 → 120 days |
+| Wrong | 1 day (resets) |
+| Manual override | Whatever interval you set |
 
-The "re-queue wrong answers" toggle in the session setup re-adds missed words to the end of the current session queue — so you see them again within minutes, before the long-term scheduler takes over.
-
----
-
-## How Article Mastery Works
-
-The Articles button on each chapter shows your accuracy from the **most recent article drill session only** — not a lifetime average. A session is a contiguous block of attempts with no gap longer than 30 minutes.
-
-This means if you drilled 80% yesterday and 50% today, you see 50% — a clear signal that you've forgotten and need to re-drill. Lifetime averages would hide this.
+The "re-queue wrong answers" option in a session brings missed words
+back before the session ends, so you see them again in minutes — the
+long-term schedule above is separate from that.
 
 ---
 
-## LLM Usage and Rate Limits
+## LLM usage and rate limits
 
-All LLM calls go through Groq's free tier:
+All LLM calls go through Groq's free developer tier — no credit card,
+no per-token billing, just rate limits:
 
-| Use case | Model | Free tier limit |
-|---|---|---|
-| Vocabulary translation (ingest) | `llama-3.3-70b-versatile` | 1,000 req/day |
-| Sentence validation (practice) | `llama-3.3-70b-versatile` | 1,000 req/day |
+- 30 requests/minute
+- 1,000 requests/day
+- 8,000 tokens/minute
+- 200,000 tokens/day
 
-Translation results are cached to `backend/translation_cache.json`. Once a word is translated, it's never sent to the API again — even across different books and chapters.
+That's used for: translating ingested vocabulary, checking sentences,
+generating example sentences for hand-added words, and generating A2/B1
+practice prompts. Translations are cached in
+`backend/translation_cache.json`, so a word is only ever sent to the API
+once — even across different books and topics.
 
-For personal use (one user, occasional ingestion, daily practice), you will not hit rate limits.
+For personal use — one user, occasional ingestion, daily practice — you
+won't come close to these limits.
 
-To switch providers, set `LLM_PROVIDER=gemini` in `.env` and add a `GEMINI_API_KEY`. The translator module supports both providers with the same interface.
+To use Gemini instead, set `LLM_PROVIDER=gemini` and add a
+`GEMINI_API_KEY`. The translator module supports both through the same
+interface.
 
 ---
 
 ## Contributing
 
-This project was built as a personal tool and learning exercise. Contributions welcome — especially:
+Built as a personal tool and a learning project. Contributions are
+welcome, especially:
 
-- Better OCR preprocessing (deskew, denoise for low-quality scans)
-- Mobile-optimized CSS for the graph and chapter views  
-- Support for EPUB files (German ebooks)
+- Better OCR preprocessing for low-quality scans
 - More exercise types (fill-in-the-blank, conjugation drills)
+- Support for EPUB source files
+- Accessibility improvements
 
-Open an issue to discuss before submitting a large PR.
+Open an issue before a large PR, so we can agree on the approach first.
 
 ---
 
 ## License
 
-MIT — free to use, modify, and distribute. If you build something with this, I'd love to hear about it.
+MIT — see [LICENSE](./LICENSE). Free to use, modify, and distribute. If
+you build something with this, I'd love to hear about it.
 
 ---
 
@@ -305,6 +347,8 @@ MIT — free to use, modify, and distribute. If you build something with this, I
 
 - [spaCy](https://spacy.io/) for German NLP
 - [Groq](https://groq.com/) for fast, free LLM inference
-- [Tesseract OCR](https://github.com/tesseract-ocr/tesseract) for text recognition
-- [react-force-graph-2d](https://github.com/vasturiano/react-force-graph) for the vocabulary graph
-- [Supabase](https://supabase.com/), [Render](https://render.com/), and [Vercel](https://vercel.com/) for free hosting tiers that make personal projects like this viable
+- [Tesseract OCR](https://github.com/tesseract-ocr/tesseract)
+- [react-force-graph-2d](https://github.com/vasturiano/react-force-graph)
+- [Supabase](https://supabase.com/), [Render](https://render.com/), and
+  [Vercel](https://vercel.com/) for the free tiers that make a project
+  like this viable to run for real
