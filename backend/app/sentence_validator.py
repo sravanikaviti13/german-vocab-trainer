@@ -156,3 +156,75 @@ def generate_sentence_prompts(word: str, pos: str, english: str, level: str = "A
         prompts = []
 
     return [str(p).strip() for p in prompts if str(p).strip()][:5]
+
+
+LOOKUP_PROMPT = """You are a German-English dictionary. The user typed this word: {query}
+
+It may be German or English (a German word may be inflected, e.g. a plural or
+a conjugated verb). Return up to 3 of the most likely German dictionary entries.
+
+For each entry give:
+- "lemma": the German dictionary form (nouns capitalized, verbs in the infinitive)
+- "pos": one of "noun", "verb", "adjective", "adverb", "other"
+- "article": nouns only — the nominative singular article, "der", "die" or "das"; otherwise null
+- "plural": nouns only — the plural form; otherwise null
+- "english": a short English meaning (1-4 words)
+
+If the input is not a real word in either language, return an empty list.
+Return ONLY a JSON object: {{"results": [...]}}
+"""
+
+_ARTICLES = {"der", "die", "das"}
+_POS_VALUES = {"noun", "verb", "adjective", "adverb", "other"}
+_LOOKUP_CACHE: dict[str, list[dict]] = {}
+_LOOKUP_CACHE_MAX = 256
+
+
+def lookup_word(query: str) -> list[dict]:
+    """Look up a German or English word; return up to 3 German entries with article/plural/meaning."""
+    key = " ".join(query.casefold().split())
+    if key in _LOOKUP_CACHE:
+        return _LOOKUP_CACHE[key]
+
+    prompt = LOOKUP_PROMPT.format(query=json.dumps(query.strip(), ensure_ascii=False))
+    response = _client.chat.completions.create(
+        model=_MODEL,
+        messages=[{"role": "user", "content": prompt}],
+        response_format={"type": "json_object"},
+        temperature=0.1,
+    )
+
+    try:
+        raw_results = json.loads(response.choices[0].message.content).get("results", [])
+    except (json.JSONDecodeError, AttributeError):
+        return []
+
+    results = []
+    for item in raw_results[:3] if isinstance(raw_results, list) else []:
+        if not isinstance(item, dict):
+            continue
+        lemma = str(item.get("lemma") or "").strip()
+        english = str(item.get("english") or "").strip()
+        if not lemma or not english:
+            continue
+
+        pos = str(item.get("pos") or "other").strip().lower()
+        if pos not in _POS_VALUES:
+            pos = "other"
+
+        article = str(item.get("article") or "").strip().lower()
+        article = article if pos == "noun" and article in _ARTICLES else None
+
+        plural = str(item.get("plural") or "").strip()
+        plural = plural if pos == "noun" and plural.lower() not in {"", "-", "null", "none"} else None
+
+        results.append({
+            "lemma": lemma, "pos": pos, "article": article,
+            "plural": plural, "english": english,
+        })
+
+    if results:  # don't cache empty results — could be a transient bad response
+        if len(_LOOKUP_CACHE) >= _LOOKUP_CACHE_MAX:
+            _LOOKUP_CACHE.pop(next(iter(_LOOKUP_CACHE)))
+        _LOOKUP_CACHE[key] = results
+    return results

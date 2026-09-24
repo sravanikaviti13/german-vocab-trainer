@@ -95,6 +95,9 @@ export const getGraph = (scope, id = null) => {
 export const checkSentence = (wordId, sentence) =>
   api.post("/sentences/check", { word_id: wordId, sentence }).then((r) => r.data);
 
+export const lookupWord = (q) =>
+  api.get("/lookup", { params: { q } }).then((r) => r.data);
+
 export const getSentencePrompts = (wordId, level) =>
   api.get(`/words/${wordId}/prompts`, { params: { level } }).then((r) => r.data);
 

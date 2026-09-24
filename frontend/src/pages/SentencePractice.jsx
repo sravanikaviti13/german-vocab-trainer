@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams, useSearchParams, Link } from "react-router-dom";
-import { getChapterWordsFiltered, checkSentence, getSentencePrompts } from "../api";
+import { getChapterWordsFiltered, checkSentence, getSentencePrompts, lookupWord } from "../api";
 
 const LEVELS = ["A1", "A2", "B1", "B2", "C1", "C2"];
 
@@ -19,6 +19,11 @@ export default function SentencePractice() {
   const [level, setLevel] = useState(null);
   const [prompts, setPrompts] = useState([]);
   const [loadingPrompts, setLoadingPrompts] = useState(false);
+  const [lookupOpen, setLookupOpen] = useState(false);
+  const [lookupQuery, setLookupQuery] = useState("");
+  const [lookupResults, setLookupResults] = useState(null); // null = not searched yet
+  const [lookupLoading, setLookupLoading] = useState(false);
+  const [lookupError, setLookupError] = useState(null);
   const inputRef = useRef();
 
   useEffect(() => {
@@ -27,10 +32,13 @@ export default function SentencePractice() {
       .finally(() => setLoading(false));
   }, [chapterId, posFilter]);
 
-  // New word: drop any prompts shown for the previous word
+  // New word: drop any prompts and lookup results shown for the previous word
   useEffect(() => {
     setLevel(null);
     setPrompts([]);
+    setLookupQuery("");
+    setLookupResults(null);
+    setLookupError(null);
   }, [index]);
 
   if (loading) return <p>Loading...</p>;
@@ -94,6 +102,23 @@ export default function SentencePractice() {
     setText("");
     setResult(null);
     setIndex(index + 1);
+  }
+
+  async function handleLookup(e) {
+    e.preventDefault();
+    const q = lookupQuery.trim();
+    if (!q || lookupLoading) return;
+    setLookupLoading(true);
+    setLookupError(null);
+    try {
+      const r = await lookupWord(q);
+      setLookupResults(r.results);
+    } catch {
+      setLookupResults(null);
+      setLookupError("Couldn't look that up. Please try again.");
+    } finally {
+      setLookupLoading(false);
+    }
   }
 
   async function handleLevelChange(e) {
@@ -232,6 +257,58 @@ export default function SentencePractice() {
                 </div>
             </div>
         )}
+
+        <div style={styles.lookupSection}>
+          <button
+            type="button"
+            onClick={() => setLookupOpen((o) => !o)}
+            style={styles.lookupToggle}
+          >
+            🔍 Forgot a word or its article? {lookupOpen ? "▴" : "▾"}
+          </button>
+
+          {lookupOpen && (
+            <div>
+              <form onSubmit={handleLookup} style={styles.lookupForm}>
+                <input
+                  value={lookupQuery}
+                  onChange={(e) => setLookupQuery(e.target.value)}
+                  placeholder="German or English word, e.g. table or Tisch"
+                  style={styles.lookupInput}
+                  maxLength={60}
+                />
+                <button
+                  type="submit"
+                  disabled={lookupLoading || !lookupQuery.trim()}
+                  style={{
+                    ...styles.lookupBtn,
+                    opacity: lookupLoading || !lookupQuery.trim() ? 0.5 : 1,
+                  }}
+                >
+                  {lookupLoading ? "..." : "Look up"}
+                </button>
+              </form>
+
+              {lookupError && <p style={styles.lookupMsg}>{lookupError}</p>}
+              {lookupResults && lookupResults.length === 0 && (
+                <p style={styles.lookupMsg}>No match found.</p>
+              )}
+              {lookupResults && lookupResults.length > 0 && (
+                <ul style={styles.lookupList}>
+                  {lookupResults.map((r, i) => (
+                    <li key={i} style={styles.lookupItem}>
+                      {r.article && <span style={styles.lookupArticle}>{r.article} </span>}
+                      <strong>{r.lemma}</strong>
+                      {r.plural && <span style={styles.lookupMeta}> (pl. {r.plural})</span>}
+                      {r.pos !== "noun" && <span style={styles.lookupMeta}> [{r.pos}]</span>}
+                      <span> — {r.english}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       <p style={styles.hintKey}>Tip: Ctrl+Enter to submit</p>
@@ -335,6 +412,49 @@ const styles = {
     border: "none",
     borderRadius: 6,
   },
+
+  lookupSection: {
+    marginTop: 20,
+    paddingTop: 12,
+    borderTop: "1px solid var(--color-border-soft)",
+  },
+  lookupToggle: {
+    background: "none",
+    border: "none",
+    padding: 0,
+    color: "var(--color-link)",
+    fontSize: "0.9rem",
+  },
+  lookupForm: { display: "flex", gap: 8, marginTop: 10 },
+  lookupInput: {
+    flex: 1,
+    minWidth: 0,
+    padding: "8px 10px",
+    border: "1px solid var(--color-border)",
+    borderRadius: "var(--radius-sm)",
+    background: "var(--color-surface)",
+    color: "var(--color-text)",
+    fontSize: "0.95rem",
+  },
+  lookupBtn: {
+    padding: "8px 14px",
+    background: "var(--color-accent)",
+    color: "var(--color-accent-contrast)",
+    border: "none",
+    borderRadius: "var(--radius-sm)",
+    fontSize: "0.9rem",
+  },
+  lookupMsg: { color: "var(--color-text-muted)", fontSize: "0.9rem", marginTop: 10 },
+  lookupList: { listStyle: "none", margin: "10px 0 0", padding: 0 },
+  lookupItem: {
+    padding: "8px 10px",
+    background: "var(--color-surface-alt)",
+    borderRadius: "var(--radius-sm)",
+    marginBottom: 6,
+    fontSize: "0.95rem",
+  },
+  lookupArticle: { color: "var(--color-link)", fontWeight: 500 },
+  lookupMeta: { color: "var(--color-text-muted)", fontSize: "0.85rem" },
 
   hintKey: { textAlign: "center", color: "var(--color-text-faint)", fontSize: "0.8rem", marginTop: 12 },
 

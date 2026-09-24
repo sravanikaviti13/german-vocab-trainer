@@ -45,7 +45,9 @@ Grammar topics:
   in the set gets used once before any word repeats.
 - **Sentence writing** — write a sentence with the target word. An LLM
   checks the grammar, explains what's wrong, and shows the English
-  meaning. You can also ask it for A2/B1-level practice prompts.
+  meaning. You can also ask it for practice prompts at any level from
+  A1 to C2, and look up a word's article, plural, and meaning (German
+  or English) without leaving the page.
 
 <table>
 <tr>
@@ -286,8 +288,8 @@ no per-token billing, just rate limits:
 - 200,000 tokens/day
 
 That's used for: translating ingested vocabulary, checking sentences,
-generating example sentences for hand-added words, and generating A2/B1
-practice prompts. Translations are cached in
+generating example sentences for hand-added words, generating practice
+prompts, and word lookups. Translations are cached in
 `backend/translation_cache.json`, so a word is only ever sent to the API
 once — even across different books and topics.
 

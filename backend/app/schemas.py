@@ -79,6 +79,18 @@ class SentencePromptsOut(BaseModel):
     prompts: list[str]
 
 
+class WordLookupEntry(BaseModel):
+    lemma: str
+    pos: str
+    article: Optional[str] = None
+    plural: Optional[str] = None
+    english: str
+
+
+class WordLookupOut(BaseModel):
+    results: list[WordLookupEntry]
+
+
 class GrammarTopicIn(BaseModel):
     title: str
 
