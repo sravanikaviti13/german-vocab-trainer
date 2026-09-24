@@ -18,13 +18,14 @@ from app.schemas import (
     BookOut, ChapterOut, WordOut, WordWithProgress,
     IngestResponse, ReviewIn, ArticleAttemptIn, SentenceCheckIn, SentenceCheckOut,
     SentencePromptsOut, GrammarTopicIn, WordManualIn, WordBulkIn, WordBulkOut,
+    WordLookupOut,
 )
 from app.srs import schedule_next_review
 
 from collections import defaultdict
 from typing import Literal
 
-from app.sentence_validator import validate_sentence, generate_sentence_prompts
+from app.sentence_validator import validate_sentence, generate_sentence_prompts, lookup_word
 
 CEFR_LEVELS = {"A1", "A2", "B1", "B2", "C1", "C2"}
 
@@ -670,6 +671,18 @@ def get_sentence_prompts(word_id: int, level: str = "A2", db: Session = Depends(
         word=word.lemma, pos=word.pos, english=word.english, level=level,
     )
     return SentencePromptsOut(level=level, prompts=prompts)
+
+
+@app.get("/api/lookup", response_model=WordLookupOut)
+def lookup(q: str):
+    """Look up a German or English word: article, plural, and meaning."""
+    q = q.strip()
+    if not q or len(q) > 60:
+        raise HTTPException(400, "Enter a word (up to 60 characters)")
+    try:
+        return WordLookupOut(results=lookup_word(q))
+    except Exception:
+        raise HTTPException(502, "Lookup failed, please try again")
 
 
 @app.get("/api/words/{word_id}/sentences")
